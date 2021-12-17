@@ -1,0 +1,197 @@
+
+surv.by.wave.stats
+
+# Survival by cohort stats
+
+```{r}
+
+library(targets)
+library(data.table)
+library(survival)
+
+clin.sum <- tar_read(clin_sum)
+
+over.wave.dt <- clin.sum[is.na(isDead)==F & is.na(overallSurvival)==F,.(ptid, isDead, overallSurvival, cohort)]
+  
+survdiff(Surv(time=overallSurvival, event=isDead, type="right") ~  cohort, data = as.data.frame(over.wave.dt), rho=0)
+  
+#                   N Observed Expected (O-E)^2/E (O-E)^2/V
+# cohort=Waves1+2 456      320      329     0.237     0.933
+# cohort=Waves3+4 201      122      113     0.687     0.933
+# 
+#  Chisq= 0.9  on 1 degrees of freedom, p= 0.3 
+
+```
+
+# Denovo inhibitors by wave
+
+```{r}
+
+library(targets)
+library(data.table)
+library(broom)
+
+inhib.sum <- tar_read(inhib_sum)
+
+as.data.table(broom::tidy(inhib.sum[,cor.test(`mean_Waves1+2`, `mean_Waves3+4`)]))
+  
+#     estimate statistic      p.value parameter  conf.low conf.high                               method alternative
+# 1: 0.9651838  35.58436 5.856928e-56        93 0.9480639 0.9767278 Pearson's product-moment correlation   two.sided
+
+```
+
+
+# PEAR1 Averages for ethnicity
+
+```{r}
+
+library(targets)
+library(data.table)
+
+clin <- tar_read(clin_data, store = "../beataml2.0_project/_targets/")
+p1.dt <- tar_read(p1_rna,store = "../beataml2.0_project/_targets/" )
+
+stopifnot(clin[is.na(inferred_ethnicity),all(group == "Waves3+4")])
+
+clin[is.na(reportedEthnicity), reportedEthnicity:="UNKNOWN"]
+clin[is.na(reportedRace), reportedRace:="Unknown"]
+
+clin[,consensus_ethnicity:=inferred_ethnicity]
+clin[is.na(consensus_ethnicity),consensus_ethnicity:=reportedRace]
+clin[reportedEthnicity == "HISPANIC",consensus_ethnicity:="HispNative"]
+
+clin[consensus_ethnicity == "American Indian", consensus_ethnicity:="HispNative"]
+clin[consensus_ethnicity == "Pacific Islander", consensus_ethnicity:="Asian"]
+
+p1.eth <- merge(p1.dt, clin[manuscript_rnaseq=="yes",.(ptid, consensus_ethnicity)], by="ptid")
+
+p1.eth[,.(mean_pear=round(mean(PEAR1), 3),.N),by=consensus_ethnicity]
+
+#    consensus_ethnicity mean_pear   N
+# 1:               White     1.722 468
+# 2:               Black     2.720  18
+# 
+# 3:          HispNative     2.319  48
+# 4:               Asian     1.791  18
+# 5:        AdmixedBlack     1.241   3
+# 6:        AdmixedWhite     1.514   1
+# 7:             Unknown     1.676  27
+# 8:            Declined     0.238   2
+
+
+```
+
+# Average difference in mutation frequency
+
+```{r}
+
+library(data.table)
+library(targets)
+
+freqs <- tar_read(mut_freqs)
+
+#for ASXL1
+freqs[symbol == "ASXL1"]
+#   symbol train_prop test_prop  max_prop symb_ord       diff
+#1:  ASXL1  0.0862069 0.1583333 0.1583333    ASXL1 0.07212644
+
+round(freqs[,mean(diff)]*100, 3)#1.506
+
+```
+
+# Significance testing for Panobinostat vs Denovo and Transformed vs Cohort 
+
+```{r}
+
+library(targets)
+library(data.table)
+library(broom)
+
+de.trans.list <- tar_read(detrans_vg_ct_data)
+
+vg.inh <- de.trans.list$vg_inh[inhibitor == "Panobinostat"]
+
+.sig.func <- function(dt){
+  
+  df <- as.data.frame(dt)
+  names(df) <- make.names(names(df))
+  
+  rbind(
+    cbind(type="single", as.data.table(tidy(lm(auc~cats,data=df)))),
+    cbind(type="additive", as.data.table(tidy(lm(auc~cats+Monocyte.like,data=df)))),
+    cbind(type="interaction", as.data.table(tidy(lm(auc~cats*Monocyte.like,data=df))))
+  )
+  
+}
+
+test.res <- vg.inh[,.sig.func(.SD), by=cohort]
+
+test.res[type == "single" & term == "catsTransformed"]
+
+#     cohort   type            term   estimate std.error  statistic    p.value
+# 1: Waves1+2 single catsTransformed -46.517155  19.96197 -2.3302893 0.02272169
+# 2: Waves3+4 single catsTransformed   3.517907  20.30462  0.1732564 0.86280007
+
+test.res[type == "interaction" & cohort == "Waves1+2"]
+
+#     cohort        type                          term  estimate std.error statistic      p.value
+# 1: Waves1+2 interaction                   (Intercept) 111.80612  6.724700 16.626187 1.802256e-25
+# 2: Waves1+2 interaction               catsTransformed -38.90335 24.225091 -1.605911 1.129967e-01
+# 3: Waves1+2 interaction                 Monocyte.like -12.58627  1.498242 -8.400693 4.562785e-12
+# 4: Waves1+2 interaction catsTransformed:Monocyte.like  11.52958  5.536381  2.082512 4.111685e-02
+
+test.res[type == "interaction" & cohort == "Waves3+4"]
+
+#      cohort        type                          term    estimate std.error  statistic      p.value
+# 1: Waves3+4 interaction                   (Intercept)  91.0428585  8.177203 11.1337406 4.275091e-19
+# 2: Waves3+4 interaction               catsTransformed  14.1443131 17.281620  0.8184599 4.150804e-01
+# 3: Waves3+4 interaction                 Monocyte.like -10.6466113  1.818754 -5.8537944 6.394754e-08
+# 4: Waves3+4 interaction catsTransformed:Monocyte.like   0.6508041  3.952100  0.1646730 8.695406e-01
+
+test.res[type == "additive" & cohort == "Waves3+4"]
+#      cohort     type            term  estimate std.error  statistic      p.value
+# 1: Waves3+4 additive     (Intercept)  91.10369  8.128617 11.2077734 2.592389e-19
+# 2: Waves3+4 additive catsTransformed  14.38766 17.133512  0.8397377 4.030788e-01
+# 3: Waves3+4 additive   Monocyte.like -10.50878  1.606764 -6.5403374 2.712596e-09
+
+```
+
+# Subbagged forest to validate Young and Module 3
+
+```{r}
+
+library(party)
+library(data.table)
+library(targets)
+
+s.res <- tar_read(ctree_results)
+
+set.seed(9762742)
+
+fors.tr <- cforest(Surv(time=overallSurvival, event=isDead, type="right")~., data=s.res$data, 
+                     controls=cforest_control(teststat="quad", testtype="Bonferroni", 
+                                              mtry=NULL,fraction=.632, ntree=1000, replace=F, 
+                                              mincriterion = 0.95, minsplit = 20, minbucket = 7))
+  
+preds <-  predict(fors.tr, type='response', OOB=T)
+  
+preds[is.infinite(preds)] <- max(preds[is.infinite(preds)==F])
+
+test.df <- s.res$data[,-c(1:2)]
+  
+test.df <- cbind(preds, test.df)
+  
+test.tree <- ctree(log10(preds) ~  ., data = test.df, control=ctree_control(mincriterion = 0.95))
+  
+test.tree
+
+#1) young <= 0; criterion = 1, statistic = 384.067
+##....unstable portion
+#1) young > 0
+  # 27) M3 <= -0.7104924; criterion = 1, statistic = 76.231
+  #   28)*  weights = 72 
+  # 27) M3 > -0.7104924
+  #   29)*  weights = 41 
+
+
+```
