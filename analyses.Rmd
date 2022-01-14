@@ -1,5 +1,102 @@
 
-surv.by.wave.stats
+# Sample size
+
+```{r}
+
+library(targets)
+library(data.table)
+
+samps <- data.table(openxlsx::read.xlsx(tar_read(clin_wkst)))
+
+samps[cohort %in% c("Waves3+4","Both"),.N]#293
+samps[cohort %in% c("Waves3+4","Both"),length(unique(dbgap_subject_id))]#279
+
+wv.12.samps <- samps[cohort %in% c("Waves1+2","Both")]
+
+wv.34.samps <- samps[cohort %in% c("Waves3+4","Both")]
+
+only.wv.34 <- setdiff(wv.34.samps$dbgap_subject_id, wv.12.samps$dbgap_subject_id)
+
+length(only.wv.34)#243 patients
+
+samps[dbgap_subject_id %in% only.wv.34,.N]#255
+
+samps[,.N] #942
+
+samps[,.N,by=dbgap_subject_id][,.N]#805
+
+samps[diseaseStageAtSpecimenCollection == "Initial Diagnosis",.N,by=dbgap_subject_id][,.N]#562
+
+#562/805 = 0.6981366
+
+clin <- samps[used_manuscript_analyses=="yes"]
+
+clin.sum <- clin[,.SD[order(timeOfSampleCollectionRelativeToInclusion)][1],by=dbgap_subject_id]
+  
+stopifnot(clin.sum[,.N,by=dbgap_subject_id][,all(N==1)])
+  
+denovo.sum <- clin.sum[,.N,by=.(isDenovo, cohort)]
+
+denovo.sum[,freq:=N/sum(N),by=cohort]
+denovo.sum[isDenovo == "TRUE"]
+#   isDenovo   cohort   N      freq
+#1:     TRUE Waves1+2 247 0.4930140
+#2:     TRUE Waves3+4 136 0.5811966
+
+
+```
+
+#PEAR1 vs ELN2017
+
+```{r}
+
+library(data.table)
+library(targets)
+library(broom)
+
+p1.rna <- tar_read(p1_rna)
+
+p1.rna <- p1.rna[is.na(age_cut)==F]
+
+p1.rna[,age_cat:=as.character(age_cut)]
+p1.rna[age_cut %in% c("older","oldest"), age_cat:="older+oldest"]
+  
+eln.res <- p1.rna[is.na(age_cut)==F & is.na(ELN2017)==F & ELN2017 != "Intermediate",cbind(as.data.table(tidy(t.test(PEAR1~ELN2017))),n=.N),by=age_cat][,.(age_cat, estimate, p.value, n)]
+
+#         age_cat  estimate      p.value   n
+# 1:       middle 1.4973583 6.326008e-03  72
+# 2: older+oldest 3.7654968 3.276102e-25 172
+# 3:        young 0.7623476 1.698327e-01  79
+
+```
+
+# PYCARD survival
+
+```{r}
+
+library(data.table)
+library(targets)
+library(survival)
+library(broom)
+
+exprs <- tar_read(comb_exprs)
+clin <- tar_read(clin_data)
+
+rna.clin <- clin[manuscript_rnaseq=="yes" & isDenovo == "TRUE" & is.na(overallSurvival)==F & is.na(isDead)==F]
+  
+py.dt <- cbind(rna.clin[,.(ptid, overallSurvival, isDead, age_cut)], exprs[rna.clin$ptid,"PYCARD",drop=F])
+
+as.data.table(tidy(coxph(Surv(time=overallSurvival, event=isDead, type="right") ~PYCARD,data=as.data.frame(py.dt))))
+
+#     term     estimate  std.error   statistic   p.value
+#1: PYCARD -0.008479793 0.09543715 -0.08885212 0.9291994
+
+as.data.table(tidy(coxph(Surv(time=overallSurvival, event=isDead, type="right") ~PYCARD,data=as.data.frame(py.dt[age_cut == "young"]))))
+
+#     term  estimate std.error statistic   p.value
+#1: PYCARD 0.1547743 0.3280003 0.4718725 0.6370178
+
+```
 
 # Survival by cohort stats
 
@@ -14,12 +111,12 @@ clin.sum <- tar_read(clin_sum)
 over.wave.dt <- clin.sum[is.na(isDead)==F & is.na(overallSurvival)==F,.(ptid, isDead, overallSurvival, cohort)]
   
 survdiff(Surv(time=overallSurvival, event=isDead, type="right") ~  cohort, data = as.data.frame(over.wave.dt), rho=0)
-  
+
 #                   N Observed Expected (O-E)^2/E (O-E)^2/V
-# cohort=Waves1+2 456      320      329     0.237     0.933
-# cohort=Waves3+4 201      122      113     0.687     0.933
+# cohort=Waves1+2 491      310      320     0.335      1.32
+# cohort=Waves3+4 214      120      110     0.978      1.32
 # 
-#  Chisq= 0.9  on 1 degrees of freedom, p= 0.3 
+#  Chisq= 1.3  on 1 degrees of freedom, p= 0.2 
 
 ```
 
@@ -47,11 +144,12 @@ as.data.table(broom::tidy(inhib.sum[,cor.test(`mean_Waves1+2`, `mean_Waves3+4`)]
 
 library(targets)
 library(data.table)
+library(broom)
 
-clin <- tar_read(clin_data, store = "../beataml2.0_project/_targets/")
-p1.dt <- tar_read(p1_rna,store = "../beataml2.0_project/_targets/" )
+clin <- tar_read(clin_data)
+p1.dt <- tar_read(p1_rna)
 
-stopifnot(clin[is.na(inferred_ethnicity),all(group == "Waves3+4")])
+stopifnot(clin[is.na(inferred_ethnicity),all(cohort == "Waves3+4")])
 
 clin[is.na(reportedEthnicity), reportedEthnicity:="UNKNOWN"]
 clin[is.na(reportedRace), reportedRace:="Unknown"]
@@ -63,20 +161,20 @@ clin[reportedEthnicity == "HISPANIC",consensus_ethnicity:="HispNative"]
 clin[consensus_ethnicity == "American Indian", consensus_ethnicity:="HispNative"]
 clin[consensus_ethnicity == "Pacific Islander", consensus_ethnicity:="Asian"]
 
-p1.eth <- merge(p1.dt, clin[manuscript_rnaseq=="yes",.(ptid, consensus_ethnicity)], by="ptid")
+p1.eth <- merge(p1.dt, clin[manuscript_rnaseq=="yes" & diseaseStageAtSpecimenCollection == "Initial Diagnosis",.(ptid, consensus_ethnicity)], by="ptid")
 
 p1.eth[,.(mean_pear=round(mean(PEAR1), 3),.N),by=consensus_ethnicity]
 
 #    consensus_ethnicity mean_pear   N
-# 1:               White     1.722 468
-# 2:               Black     2.720  18
-# 
-# 3:          HispNative     2.319  48
-# 4:               Asian     1.791  18
-# 5:        AdmixedBlack     1.241   3
+# 1:               White     1.395 359
+# 2:               Black     2.205  13
+# 3:               Asian     1.924  15
+# 4:          HispNative     1.863  31
+# 5:        AdmixedBlack     1.954   1
 # 6:        AdmixedWhite     1.514   1
-# 7:             Unknown     1.676  27
+# 7:             Unknown     2.291  13
 # 8:            Declined     0.238   2
+
 
 
 ```
@@ -92,106 +190,87 @@ freqs <- tar_read(mut_freqs)
 
 #for ASXL1
 freqs[symbol == "ASXL1"]
-#   symbol train_prop test_prop  max_prop symb_ord       diff
-#1:  ASXL1  0.0862069 0.1583333 0.1583333    ASXL1 0.07212644
+#  symbol train_prop test_prop  max_prop symb_ord       diff
+#1:  ASXL1 0.08713693 0.1515152 0.1515152    ASXL1 0.06437822
 
-round(freqs[,mean(diff)]*100, 3)#1.506
+#round(freqs[,mean(diff)]*100, 3)#1.321
 
 ```
 
-# Significance testing for Panobinostat vs Denovo and Transformed vs Cohort 
+
+# PEAR1 by denovo vs transformed
 
 ```{r}
 
-library(targets)
 library(data.table)
+library(targets)
 library(broom)
 
-de.trans.list <- tar_read(detrans_vg_ct_data)
+clin <- tar_read(clin_data)
+p1.dt <- tar_read(p1_rna)
+vg.scores <- tar_read(vg_scores)
 
-vg.inh <- de.trans.list$vg_inh[inhibitor == "Panobinostat"]
-
-.sig.func <- function(dt){
+rna.clin <- clin[manuscript_rnaseq=="yes" & diseaseStageAtSpecimenCollection == "Initial Diagnosis"]
   
-  df <- as.data.frame(dt)
-  names(df) <- make.names(names(df))
+rcp <- merge(p1.dt[,.(ptid, PEAR1)], rna.clin, by="ptid")
   
-  rbind(
-    cbind(type="single", as.data.table(tidy(lm(auc~cats,data=df)))),
-    cbind(type="additive", as.data.table(tidy(lm(auc~cats+Monocyte.like,data=df)))),
-    cbind(type="interaction", as.data.table(tidy(lm(auc~cats*Monocyte.like,data=df))))
-  )
+mlt.type <- suppressWarnings(melt(rcp, measure.vars=c("isDenovo", "isTransformed", "isTherapy"), id.vars=c("ptid", "cohort" ,"PEAR1"), variable.factor=F))
+mlt.sum <- mlt.type[value %in% c("TRUE"),.(type=paste(unique(variable), collapse=";")), by=.(ptid, cohort, PEAR1)]
+#only a couple
+mlt.sum <- mlt.sum[grepl(";", type)==F]
   
-}
+vg.sum <- merge(vg.scores$summary[,.(ptid, vg_type, cohort, PC1)], mlt.sum[type %in% c("isDenovo", "isTransformed")], by=c("ptid", "cohort"))
+  
+vg.sum[,cats:=ifelse(type=="isDenovo","Denovo", "Transformed")]
+  
+hsc.sum <- vg.sum[vg_type %in% c("HSC-like", "Monocyte-like")]
 
-test.res <- vg.inh[,.sig.func(.SD), by=cohort]
+as.data.table(tidy(lm(PEAR1~PC1*cats, data=hsc.sum[vg_type == "HSC-like"])))
+#                   term  estimate  std.error statistic      p.value
+# 1:         (Intercept) 1.3590273 0.11277803 12.050462 2.099174e-28
+# 2:                 PC1 0.5107280 0.04606156 11.087942 7.774774e-25
+# 3:     catsTransformed 0.9151754 0.30474099  3.003125 2.855420e-03
+# 4: PC1:catsTransformed 0.2597414 0.11473769  2.263784 2.417062e-02
 
-test.res[type == "single" & term == "catsTransformed"]
 
-#     cohort   type            term   estimate std.error  statistic    p.value
-# 1: Waves1+2 single catsTransformed -46.517155  19.96197 -2.3302893 0.02272169
-# 2: Waves3+4 single catsTransformed   3.517907  20.30462  0.1732564 0.86280007
-
-test.res[type == "interaction" & cohort == "Waves1+2"]
-
-#     cohort        type                          term  estimate std.error statistic      p.value
-# 1: Waves1+2 interaction                   (Intercept) 111.80612  6.724700 16.626187 1.802256e-25
-# 2: Waves1+2 interaction               catsTransformed -38.90335 24.225091 -1.605911 1.129967e-01
-# 3: Waves1+2 interaction                 Monocyte.like -12.58627  1.498242 -8.400693 4.562785e-12
-# 4: Waves1+2 interaction catsTransformed:Monocyte.like  11.52958  5.536381  2.082512 4.111685e-02
-
-test.res[type == "interaction" & cohort == "Waves3+4"]
-
-#      cohort        type                          term    estimate std.error  statistic      p.value
-# 1: Waves3+4 interaction                   (Intercept)  91.0428585  8.177203 11.1337406 4.275091e-19
-# 2: Waves3+4 interaction               catsTransformed  14.1443131 17.281620  0.8184599 4.150804e-01
-# 3: Waves3+4 interaction                 Monocyte.like -10.6466113  1.818754 -5.8537944 6.394754e-08
-# 4: Waves3+4 interaction catsTransformed:Monocyte.like   0.6508041  3.952100  0.1646730 8.695406e-01
-
-test.res[type == "additive" & cohort == "Waves3+4"]
-#      cohort     type            term  estimate std.error  statistic      p.value
-# 1: Waves3+4 additive     (Intercept)  91.10369  8.128617 11.2077734 2.592389e-19
-# 2: Waves3+4 additive catsTransformed  14.38766 17.133512  0.8397377 4.030788e-01
-# 3: Waves3+4 additive   Monocyte.like -10.50878  1.606764 -6.5403374 2.712596e-09
-
+as.data.table(tidy(lm(PEAR1~PC1*cats, data=hsc.sum[vg_type == "Monocyte-like"])))
+#                   term    estimate  std.error  statistic      p.value
+# 1:         (Intercept)  1.20425037 0.13566992  8.8763257 3.099431e-17
+# 2:                 PC1  0.05471832 0.03140290  1.7424609 8.226548e-02
+# 3:     catsTransformed  1.80242643 0.35339519  5.1003140 5.447135e-07
+# 4: PC1:catsTransformed -0.05980337 0.09226512 -0.6481689 5.172811e-01
 ```
 
-# Subbagged forest to validate Young and Module 3
+
+#LSC17 by denovo vs transformed
 
 ```{r}
 
-library(party)
 library(data.table)
 library(targets)
 
-s.res <- tar_read(ctree_results)
+clin <- tar_read(clin_data)
 
-set.seed(9762742)
+lsc17 <- tar_read(lsc17)
 
-fors.tr <- cforest(Surv(time=overallSurvival, event=isDead, type="right")~., data=s.res$data, 
-                     controls=cforest_control(teststat="quad", testtype="Bonferroni", 
-                                              mtry=NULL,fraction=.632, ntree=1000, replace=F, 
-                                              mincriterion = 0.95, minsplit = 20, minbucket = 7))
+rna.clin <- clin[manuscript_rnaseq=="yes" & diseaseStageAtSpecimenCollection == "Initial Diagnosis"]
   
-preds <-  predict(fors.tr, type='response', OOB=T)
+rcp <- merge(lsc17, rna.clin, by="ptid")
   
-preds[is.infinite(preds)] <- max(preds[is.infinite(preds)==F])
+mlt.type <- suppressWarnings(melt(rcp, measure.vars=c("isDenovo", "isTransformed", "isTherapy"), id.vars=c("ptid", "cohort" ,"LSC17"), variable.factor=F))
+mlt.sum <- mlt.type[value %in% c("TRUE"),.(type=paste(unique(variable), collapse=";")), by=.(ptid, cohort, LSC17)]
+#only a couple
+mlt.sum <- mlt.sum[grepl(";", type)==F]
+  
+devtra <- rbindlist(
+    list(
+      dtrans=data.table(tidy(t.test(LSC17~type,data=mlt.sum[type %in% c("isDenovo", "isTransformed")]))),
+      dther=data.table(tidy(t.test(LSC17~type,data=mlt.sum[type %in% c("isDenovo", "isTherapy")])))
+    ), idcol="type"
+)
 
-test.df <- s.res$data[,-c(1:2)]
-  
-test.df <- cbind(preds, test.df)
-  
-test.tree <- ctree(log10(preds) ~  ., data = test.df, control=ctree_control(mincriterion = 0.95))
-  
-test.tree
-
-#1) young <= 0; criterion = 1, statistic = 384.067
-##....unstable portion
-#1) young > 0
-  # 27) M3 <= -0.7104924; criterion = 1, statistic = 76.231
-  #   28)*  weights = 72 
-  # 27) M3 > -0.7104924
-  #   29)*  weights = 41 
-
+#     type    estimate estimate1 estimate2  statistic      p.value parameter   conf.low   conf.high                  method alternative
+# 1: dtrans -0.26296959 0.3180931 0.5810627 -5.6778465 2.171146e-07  79.08198 -0.3551558 -0.17078333 Welch Two Sample t-test   two.sided
+# 2:  dther -0.06857644 0.3180931 0.3866695 -0.8780281 3.863210e-01  32.76961 -0.2275202  0.09036733 Welch Two Sample t-test   two.sided
 
 ```

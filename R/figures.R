@@ -221,11 +221,13 @@ drug.ct.heatmap <- function(all.cors, inh.inters, ct.ord){
   ct.sig.mat <- ct.mat[ct.ord, inhib.map$inhibitor]
   
   inhib.map[,sig_inter:=inhibitor %in% inh.inters[qval < .05]$inhibitor]
+  inhib.map[,sug_inter:=inhibitor %in% inh.inters[qval < .1]$inhibitor]
   
   ct.sig.mat <- ct.sig.mat[,inhib.map$inhibitor]
   
   hb <- HeatmapAnnotation(
-    inter=anno_points(rep(.8, ncol(ct.sig.mat)), pch=ifelse(inhib.map$sig_inter , 8, NA_integer_),gp=gpar(border = "grey", cex=3), ylim=c(0,1), border=F, axis=F, height=unit(6, "points")),
+    inter_sug=anno_points(rep(.8, ncol(ct.sig.mat)), pch=ifelse(inhib.map$sug_inter , 8, NA_integer_),gp=gpar(border = "grey", cex=3), ylim=c(0,1), border=F, axis=F, height=unit(6, "points")),
+    inter_sig=anno_points(rep(.8, ncol(ct.sig.mat)), pch=ifelse(inhib.map$sig_inter , 8, NA_integer_),gp=gpar(border = "grey", cex=3), ylim=c(0,1), border=F, axis=F, height=unit(6, "points")),
     show_annotation_name=F, gap=0)
   
   ht <- Heatmap(ct.sig.mat, cluster_rows=F, cluster_columns=T, clustering_method_columns="average",col=circlize::colorRamp2(breaks=c(-.4, 0, .4), colors=c("red", "white","blue")),
@@ -234,7 +236,7 @@ drug.ct.heatmap <- function(all.cors, inh.inters, ct.ord){
                 column_names_gp=gpar(fontfamily="Arial", fontsize=6), row_names_gp=gpar(fontfamily="Arial", fontsize=6),
                 bottom_annotation=hb)
   
-  pdf(file="figures/fig3a.pdf", width=174*0.0393701, height=2.75)
+  pdf(file="figures/fig3a.pdf", width=174*0.0393701, height=3)
   #bottom, left, top and right
   draw( ht, heatmap_legend_side = "bottom", padding=unit(c(5.5, 1, 5.5, 1), "points"))
   dev.off()
@@ -247,20 +249,23 @@ drug.mut.ct.inter.plot <- function(inh.inters, ct.ord, ct.colors){
   inh.inters[,plot_vals:=sign(estimate) * -log10(pval)]
   inh.inters[,ct_fac:=factor(ct, levels=sub("\\-",".", ct.ord), labels=ct.ord, ordered=T)]
   
+  #note these threshold are for visualization purposes
   inh.inters[,c_levs:="none"]
-  inh.inters[qval < .05,c_levs:=gene]
+  inh.inters[qval < .07,c_levs:=gene]
   
   sig.vals <- inh.inters[,min(pval),by=c_levs][order(V1)]
   
-  sig.shapes <- setNames(c(24, 25, 7, 3, 22, 8, 21), sig.vals$c_levs)
+  sig.shapes <- setNames(c( 24, 25, 7, 3, 22, 8, 14,21)[seq_along(sig.vals$c_levs)], sig.vals$c_levs)
   
-  inh.inters[inhibitor == "Entospletinib (GS-9973)", inhibitor:="Entospletinib"]
-  
-  inh.inters[,inh:=ifelse(qval < .05, inhibitor, "")]
+  inh.inters[,inh:=ifelse(qval < .07, inhibitor, "")]
   
   pos <- position_jitter(width = 0.3, height=0, seed = 2)
   
+  sug.thresh <- inh.inters[qval < .1, min(-log10(pval))]
+  sig.thresh <- inh.inters[qval < .05, min(-log10(pval))]
+  
   inter.plot <- ggplot(data=inh.inters, mapping=aes(x=ct_fac, y=plot_vals, shape=c_levs, fill=ct_fac, alpha=qval < .05, size=qval < .05)) + 
+    geom_hline(yintercept=c(sug.thresh, sig.thresh, -sug.thresh, -sig.thresh), linetype=c("dashed", "solid", "dashed", "solid")) +
     geom_point(position = pos) +
     scale_fill_manual(values=ct.colors, guide="none") +
     scale_shape_manual(values=sig.shapes, name="Sig. Interaction") +
@@ -324,7 +329,7 @@ family.mut.assoc.plot <- function(comb.assoc){
   comb.assoc <- merge(comb.assoc, high.assoc[,.(gene, inhibitor, highlight=T)], all.x=T, all.y=F)
   comb.assoc[is.na(highlight),highlight:=F]
   
-  stopifnot(comb.assoc[highlight == T, min(qval)] < .05)
+  stopifnot(comb.assoc[highlight == T, max(qval) < .05] )
   
   c.volc <- ggplot(data=comb.assoc, mapping=aes(x=glass_d, y=-log10(pval), fill=sig)) + 
     geom_point(size=3, shape=21, mapping=aes(alpha=qval < .05)) +
@@ -359,8 +364,9 @@ family.ct.heatmap <- function(all.cors, family.list, family.inters, ct.ord){
   ct.sig.mat <- ct.mat[ct.ord, colnames(sig.mat)]
   rownames(ct.sig.mat) <- ct.ord
   
-  hb <- HeatmapAnnotation(inter=anno_points(rep(.8, ncol(ct.sig.mat)), pch=ifelse(colnames(ct.sig.mat) %in% family.inters[qval < .05,synonym], 8, NA_integer_), 
-                                            gp=gpar(border = "grey", cex=3), ylim=c(0,1), border=F, axis=F), show_annotation_name=F)
+  hb <- HeatmapAnnotation(sug_inter=anno_points(rep(.8, ncol(ct.sig.mat)), pch=ifelse(colnames(ct.sig.mat) %in% family.inters[qval < .1,synonym], 8, NA_integer_), gp=gpar(border = "grey", cex=3), ylim=c(0,1), border=F, axis=F, height=unit(6, "points")), 
+                          sig_inter=anno_points(rep(.8, ncol(ct.sig.mat)), pch=ifelse(colnames(ct.sig.mat) %in% family.inters[qval < .05,synonym], 8, NA_integer_),gp=gpar(border = "grey", cex=3), ylim=c(0,1), border=F, axis=F, height=unit(6, "points")),
+                          show_annotation_name=F, gap=0)
   
   ht <- Heatmap(ct.sig.mat, cluster_rows=F, cluster_columns=T, clustering_method_columns="average", col=circlize::colorRamp2(breaks=c(-.4, 0, .4), colors=c("red", "white","blue")),
                 heatmap_legend_param = list(title_position = "leftcenter", direction = "horizontal",
@@ -383,24 +389,27 @@ family.mut.ct.inter.plot <- function(family.inters,family.list, ct.ord, ct.color
   family.inters[,plot_vals:=sign(estimate) * -log10(pval)]
   family.inters[,ct_fac:=factor(ct, levels=sub("\\-",".", ct.ord), labels=ct.ord, ordered=T)]
   
+  #note these threshold are for visualization purposes
   family.inters[,c_levs:="none"]
-  family.inters[qval < .05,c_levs:=gene]
+  family.inters[qval < .06,c_levs:=gene]
   
-  sig.vals <- c(unique(family.inters[qval < .05, c_levs]), "none")
+  sig.vals <- c(unique(family.inters[qval < .06, c_levs]), "none")
   
-  sig.shapes <- setNames(c(24, 3, 22, 25,  21), sig.vals)
+  sig.shapes <- setNames(c(24, 14, 18, 3, 22, 25,  21)[seq_along(sig.vals)], sig.vals)
   
   fam.syns <- family.list$synonyms
   
   family.inters <- merge(family.inters, fam.syns, by.x="inhibitor", by.y="family")
   
-  family.inters[,inh:=ifelse(qval < .05, synonym, "")]
+  family.inters[,inh:=ifelse(qval < .06, synonym, "")]
   
   pos <- position_jitter(width = 0.3, height=0, seed = 2)
   
-  #color=qval < .05, 
+  sug.thresh <- family.inters[qval < .1, min(-log10(pval))]
+  sig.thresh <- family.inters[qval < .05, min(-log10(pval))]
   
   inter.plot <- ggplot(data=family.inters, mapping=aes(x=ct_fac, y=plot_vals, shape=c_levs, fill=ct_fac, alpha=qval < .05, size=qval < .05)) + 
+    geom_hline(yintercept=c(sug.thresh, sig.thresh, -sug.thresh, -sig.thresh), linetype=c("dashed", "solid", "dashed", "solid")) +
     geom_point(position = pos) +
     scale_fill_manual(values=ct.colors, guide="none") +
     scale_shape_manual(values=sig.shapes, name="Sig. Interaction") +
@@ -424,7 +433,7 @@ family.mut.ct.inter.plot <- function(family.inters,family.list, ct.ord, ct.color
 
 stree.plot <- function(s.tree){
   
-  pdf(file="figures/rna_mut_ctree_results_v1.pdf", width=6.5, height=3.5)
+  pdf(file="figures/rna_mut_ctree_results_v1.pdf", width=12, height=5)
   plot(s.tree$tree, type="simple")
   dev.off()
   
@@ -432,25 +441,33 @@ stree.plot <- function(s.tree){
   
 }
 
-stree.summary.plot <- function(s.tree, p1.rna){
+
+stree.summary.plot <- function(s.tree){
   
-  p1.rna <- merge(p1.rna, s.tree$nodes, by="ptid")
-  p1.rna[,node:=paste0("Node", node)]
+  tree.df <- s.tree$data
+  tree.df$node <- paste0("Node", predict(s.tree$tree, newdata=tree.df, type="node"))
   
-  mod.fit <- survfit(Surv(time=overallSurvival, event=isDead, type="right") ~  node, data = as.data.frame(p1.rna))
+  mod.fit <- survfit(Surv(time=overallSurvival, event=isDead, type="right") ~  node, data = tree.df)
   
-  y.plot <- ggsurvplot(mod.fit, data =as.data.frame(p1.rna), pval=F, ggtheme=theme_bw(), palette=wesanderson::wes_palette(name="Darjeeling1",n=5, type="discrete"))
+  y.plot <- ggsurvplot(mod.fit, data =tree.df, pval=F, ggtheme=theme_bw(), palette=wesanderson::wes_palette(name="Darjeeling1",n=6, type="continuous"))
+  
+  #get palette mapping
+  g <- ggplot_build(y.plot$plot)
+  stratas <- unique(g$plot$data$strata)
+  
+  color.dt <- data.table(colors = g$plot$scales$scales[[2]]$map(stratas), label = as.character(stratas)) 
   
   ggsave(y.plot$plot, file="figures/rna_mut_ctree_curves.pdf", width=4, height=3.5)
   
-  #temporary version just to figure out legend
+  #temporary version just to double-check legend
   
   ggsave(y.plot$plot, file="figures/rna_mut_ctree_curves_tmp.pdf", width=8, height=3.5)
   
-  return("figures/rna_mut_ctree_curves.pdf") 
+  return(color.dt)
+  
 }
 
-m3.pear1.hsc.plot <- function(s.tree, p1.trees, cur.map, comb.exprs, vg.scores, wgcna.mes){
+m3.pear1.hsc.plot <- function(cur.map, comb.exprs, vg.scores, wgcna.mes){
   
   #relationship between M3 and PEAR1 wrt HSC-like
   
@@ -476,8 +493,6 @@ m3.pear1.hsc.plot <- function(s.tree, p1.trees, cur.map, comb.exprs, vg.scores, 
   m3.pear <- ggplot(data=hsc.dt, mapping=aes(x=PEAR1, y=M3, fill=`HSC.like`)) + 
     geom_point(shape=21, size=3, alpha=.8) +
     viridis::scale_fill_viridis(option="plasma", end=.9, name="HSC-like") +
-    geom_hline(yintercept= s.tree$tree@tree$right$psplit$splitpoint, linetype="dashed") +
-    geom_vline(xintercept=p1.trees$young_overall@tree$psplit$splitpoint, linetype="dashed") +
     theme_bw() + ylab("Mod3 (red)") + 
     theme(axis.text = element_text(family="Arial", size=8),
           text=element_text(family="Arial", size=8),
@@ -488,7 +503,159 @@ m3.pear1.hsc.plot <- function(s.tree, p1.trees, cur.map, comb.exprs, vg.scores, 
   return("figures/pear1vm3_v1.pdf")
 }
 
-pear1.eln.plot <- function(p1.rna, p1.trees){
+
+clinical.vs.features.plot <- function(clin, feats, wgcna.maps){
+  
+  rna.clin <- clin[manuscript_rnaseq == "yes" & diseaseStageAtSpecimenCollection == "Initial Diagnosis"]
+  
+  #fix character encoding
+  suppressWarnings(rna.clin[,perc_blasts:=as.numeric(sub(">", "", `%.Blasts.in.BM`, fixed=T))])
+  
+  mlt.type <- suppressWarnings(melt(rna.clin, measure.vars=c("isDenovo", "isTransformed", "isTherapy"), id.vars=c("ptid"), variable.factor=F))
+  mlt.sum <- mlt.type[value %in% c("TRUE"),.(type=paste(unique(variable), collapse=";")), by=.(ptid)]
+  #only a couple
+  mlt.sum <- mlt.sum[grepl(";", type)==F]
+  mlt.sum[,type:=gsub("is", "", type)]
+  
+  rna.clin <- merge(rna.clin, mlt.sum, by="ptid", all.x=T, all.y=F)
+  
+  
+  rna.feats <- feats[,-grep("mut\\.", names(feats)), with=F]
+  rna.feats <- rna.feats[complete.cases(rna.feats)]
+  melt.feats <- melt(rna.feats, id.vars=c("ptid"), variable.factor=F)
+  
+  melt.feats <- merge(melt.feats, wgcna.maps$mod.map, by.x="variable", by.y="cur_labels", all.x=T, all.y=F)
+  
+  melt.feats[,variable:=ifelse(is.na(prev_modules)==F, paste0(sub("M", "Mod", variable), " (", prev_modules, ")"), sub("\\.", "-", variable))]
+  
+  rna.clin.f <- merge(rna.clin, melt.feats, by="ptid", allow.cartesian=T)
+  
+  #categorical list
+  
+  cat.list <- list(
+    Therapy_vs_Denovo=list(column="type", levs=c("Denovo", "Therapy")),
+    Transformed_vs_Denovo=list(column="type", levs=c("Denovo", "Transformed")),
+    ELN2017_Adverse_vs_Favorable=list(column="ELN2017", levs=c("Favorable", "Adverse")),
+    Female_vs_Male=list(column="consensus_sex", levs=c("Male", "Female")),
+    BM_vs_PB=list(column="specimenType", levs=c("Peripheral Blood", "Bone Marrow Aspirate"))
+  )
+  
+  cat.res <- rbindlist(lapply(cat.list, function(i){
+    
+    rbindlist(lapply(split(rna.clin.f, by="variable"), function(j){
+      
+      tmp.x <- as.data.frame(j[,c(i$column, "value"), with=F])
+      tmp.x$class_fac <- factor(tmp.x[[1]], levels=i$levs)
+      
+      tmp.x <- tmp.x[complete.cases(tmp.x),]
+      
+      tmp.fit <- glm(class_fac~value, data=tmp.x, family=binomial(link = "logit"))
+      
+      as.data.table(tidy(tmp.fit))[term=="value"]
+      
+    }), idcol="variable")
+    
+  }), idcol="comparison")
+  
+  cat.res$type <- "Categorical"
+  
+  #survival
+  
+  surv.res <- rbindlist(lapply(split(rna.clin.f, by="variable"), function(j){
+    
+    tmp.x <- as.data.frame(j[is.na(overallSurvival)==F & is.na(isDead)==F])
+    
+    ph.test <- coxph(Surv(time=overallSurvival, event=isDead, type="right") ~ value, data=tmp.x)
+    
+    as.data.table(tidy(ph.test))
+    
+  }),idcol="variable")
+  
+  surv.res[,`:=`(comparison="All", type="Survival")]
+  
+  #survival by age
+  
+  surv.age.res <- rbindlist(lapply(split(rna.clin.f[is.na(ageAtDiagnosis)==F], by=c("variable", "age_cut")), function(j){
+    
+    tmp.x <- as.data.frame(j[is.na(overallSurvival)==F & is.na(isDead)==F])
+    
+    ph.test <- coxph(Surv(time=overallSurvival, event=isDead, type="right") ~ value, data=tmp.x)
+    
+    as.data.table(tidy(ph.test))
+    
+  }),idcol="var_age")
+  
+  surv.age.res[,c("variable", "comparison"):=tstrsplit(var_age, "\\.")]
+  
+  surv.age.res[,`:=`(type="Survival")]
+  
+  surv.age.res[,comparison:=.capwords(comparison)]
+  
+  #for continuous
+  
+  cont.list <- list(
+    Age="ageAtDiagnosis",
+    Percent_Monocytes="%.Monocytes.in.PB",
+    Percent_Neutrophils="%.Neutrophils.in.PB",
+    WBC_Count="wbcCount",
+    Percent_Blasts=c("perc_blasts")
+  )
+  
+  cont.res <- rbindlist(lapply(cont.list, function(i){
+    
+    rbindlist(lapply(split(rna.clin.f, by="variable"), function(j){
+      
+      tmp.x <- as.data.frame(j[,c(i, "value"), with=F])
+      names(tmp.x) <- c("cont", "value")
+      tmp.x <- tmp.x[complete.cases(tmp.x),]
+      
+      tmp.fit <- lm(cont~value, data=tmp.x)
+      
+      as.data.table(tidy(tmp.fit))[term=="value"]
+      
+    }), idcol="variable")
+    
+  }), idcol="comparison")
+  
+  cont.res$type <- "Continuous"
+  
+  all.res <- rbind(
+    cat.res,
+    surv.res[,names(cat.res),with=F],
+    surv.age.res[,names(cat.res),with=F],
+    cont.res[,names(cat.res),with=F]
+  )
+  
+  all.mat <- reshape2::acast(comparison~variable, value.var="statistic",data=all.res)
+  
+  comp.cat <- unique(all.res[,.(comparison, type)])
+  comp.cat[,type_fac:=factor(type, levels=c("Survival", "Continuous", "Categorical"), ordered=T)]
+  
+  all.mat <- all.mat[comp.cat$comparison,]
+  
+  v1 <- viridis(n=3)
+  
+  ht <- Heatmap(all.mat,  rect_gp = gpar(col = "white"), split=comp.cat$type_fac, col=circlize::colorRamp2(breaks=c(-6, 0, 6), colors=v1),
+                cluster_columns=T, cluster_rows=T, clustering_method_columns="average", clustering_method_rows="average",
+                clustering_distance_columns="euclidean", clustering_distance_rows="euclidean",
+                cluster_row_slices = F, column_split=5, name="T or Z statistic",
+                column_names_gp=gpar(fontfamily="Arial", fontsize=8), 
+                row_names_gp=gpar(fontfamily="Arial", fontsize=8),
+                heatmap_legend_param = list(title_position = "leftcenter", direction = "horizontal",
+                                            title_gp = gpar(fontsize = 8, fontface = "bold", fontfamily="Arial"), labels_gp = gpar(fontsize = 8, fontfamily="Arial")))
+  
+  pdf(file="figures/clin_feature_heatmap_v1.pdf", width=174/24.5, height=174/24.5)
+  
+  draw( ht, heatmap_legend_side = "bottom")
+  
+  dev.off()
+  
+  return("figures/clin_feature_heatmap_v1.pdf")
+  
+}
+
+
+pear1.eln.plot <- function(p1.rna){
   
   p1.rna[,age_cat:=as.character(age_cut)]
   p1.rna[age_cut %in% c("older","oldest"), age_cat:="older+oldest"]
@@ -515,29 +682,19 @@ pear1.eln.plot <- function(p1.rna, p1.trees){
   return("figures/pear1_v_eln2017.pdf")
 }
 
-pear1vslsc17 <- function(p1.rna, lsc.dt, p1.trees){
+pear1vslsc17 <- function(p1.rna, lsc.dt){
   
   p1.rna <- merge(p1.rna, lsc.dt, by="ptid")
   
-  rna.clin.df <- as.data.frame(p1.rna[is.na(overallSurvival)==F & is.na(isDead)==F & age_cut == "young"])
+  rna.clin.df <- as.data.frame(p1.rna[age_cut == "young"])
   
-  lsc.cut <- median(rna.clin.df$LSC17)
-  
-  rna.clin.df$lsc17_cat <- ifelse(rna.clin.df$LSC17 > lsc.cut, "high", "low")
-  
-  lsc.fit <- survfit(Surv(time=overallSurvival, event=isDead, type="right") ~  lsc17_cat, data = rna.clin.df) 
-  
-  lsc.plot <- ggsurvplot(lsc.fit, data = rna.clin.df, pval=T, ggtheme=theme_bw()) + ggtitle("LSC17")
+  lsc.plot <- .surv.plot.from.tree(rna.clin.df,var.name="LSC17", subset.descr="")
   
   lsc.plot.p <- lsc.plot$plot + theme(axis.text = element_text(family="Arial", size=8),
                                       text=element_text(family="Arial", size=8),
                                       strip.text=element_text(family="Arial", size=8))
   
-  rna.clin.df$pear1_cat <- ifelse(rna.clin.df$PEAR1 > p1.trees$young_overall@tree$psplit$splitpoint, "high", "low")
-  
-  pear.fit <- survfit(Surv(time=overallSurvival, event=isDead, type="right") ~  pear1_cat, data = rna.clin.df)
-  
-  p1.plot <- ggsurvplot(pear.fit, data = rna.clin.df, pval=T, ggtheme=theme_bw()) + ggtitle("PEAR1")
+  p1.plot <- .surv.plot.from.tree(rna.clin.df,var.name="PEAR1", subset.descr="")
   
   p1.plot.p <-  p1.plot$plot + theme(axis.text = element_text(family="Arial", size=8),
                                      text=element_text(family="Arial", size=8),
@@ -548,38 +705,64 @@ pear1vslsc17 <- function(p1.rna, lsc.dt, p1.trees){
   return("figures/baml_pear1_young_v1.pdf")
 }
 
-
 pear1vslsc17.hr <- function(p1.rna, lsc.dt){
   
-  p1.lsc <- merge(p1.rna, lsc.dt, by="ptid")
+  all.dt <- merge(p1.rna, lsc.dt, by="ptid")
   
-  all.df <- as.data.frame(p1.lsc[is.na(overallSurvival)==F & is.na(isDead)==F,])
-  
-  res.dt <- rbindlist(list(
+  ctree.res.dt <- rbindlist(list(
     #all patients
-    PEAR1.all.full=.hazard.ratio(all.df, split.col="PEAR1", type=c("tree")),
-    LSC17.all.full=.hazard.ratio(all.df, split.col="LSC17", type=c("median")),
+    PEAR1.all.full=.hazard.ratio.cat(all.dt, split.col="PEAR1", type="tree"),
+    LSC17.all.full=.hazard.ratio.cat(all.dt, split.col="LSC17", type="tree"),
     #young patients
-    PEAR1.all.young=.hazard.ratio(all.df[is.na(all.df$age_cut) == F & all.df$age_cut == "young",], split.col="PEAR1", type=c("tree")),
-    LSC17.all.young=.hazard.ratio(all.df[is.na(all.df$age_cut) == F & all.df$age_cut == "young",], split.col="LSC17", type=c("median")),
+    PEAR1.all.young=.hazard.ratio.cat(all.dt[age_cut == "young",], split.col="PEAR1", type="tree"),
+    LSC17.all.young=.hazard.ratio.cat(all.dt[age_cut == "young",], split.col="LSC17", type="tree"),
     #BM
-    PEAR1.BM.full=.hazard.ratio(all.df[all.df$specimenType == "Bone Marrow Aspirate",], split.col="PEAR1", type=c("tree")),
-    LSC17.BM.full=.hazard.ratio(all.df[all.df$specimenType == "Bone Marrow Aspirate",], split.col="LSC17", type=c("median")),
+    PEAR1.BM.full=.hazard.ratio.cat(all.dt[specimenType == "Bone Marrow Aspirate",], split.col="PEAR1", type="tree"),
+    LSC17.BM.full=.hazard.ratio.cat(all.dt[specimenType == "Bone Marrow Aspirate",], split.col="LSC17", type="tree"),
     #young BM
-    PEAR1.BM.young=.hazard.ratio(all.df[is.na(all.df$age_cut) == F & all.df$age_cut == "young" & all.df$specimenType == "Bone Marrow Aspirate",], split.col="PEAR1", type=c("tree")),
-    LSC17.BM.young=.hazard.ratio(all.df[is.na(all.df$age_cut) == F & all.df$age_cut == "young" & all.df$specimenType == "Bone Marrow Aspirate",], split.col="LSC17", type=c("median"))
+    PEAR1.BM.young=.hazard.ratio.cat(all.dt[age_cut == "young" & specimenType == "Bone Marrow Aspirate",], split.col="PEAR1", type="tree"),
+    LSC17.BM.young=.hazard.ratio.cat(all.dt[age_cut == "young" & specimenType == "Bone Marrow Aspirate",], split.col="LSC17", type="tree")
     
   ), idcol="version")
   
   
-  res.dt[,c("pred", "tissue", "cohort"):=tstrsplit(version, "\\.")]
+  ctree.res.dt[,c("pred", "tissue", "cohort"):=tstrsplit(version, "\\.")]
   
-  p1 <- ggplot(data=res.dt, mapping=aes(y=version, x=exp.coef., xmin=lower..95, xmax=upper..95)) + geom_pointrange() +
+  #median
+  
+  med.res.dt <- rbindlist(list(
+    #all patients
+    PEAR1.all.full=.hazard.ratio.cat(all.dt, split.col="PEAR1", type="median"),
+    LSC17.all.full=.hazard.ratio.cat(all.dt, split.col="LSC17", type="median"),
+    #young patients
+    PEAR1.all.young=.hazard.ratio.cat(all.dt[age_cut == "young",], split.col="PEAR1", type="median"),
+    LSC17.all.young=.hazard.ratio.cat(all.dt[age_cut == "young",], split.col="LSC17", type="median"),
+    #BM
+    PEAR1.BM.full=.hazard.ratio.cat(all.dt[specimenType == "Bone Marrow Aspirate",], split.col="PEAR1", type="median"),
+    LSC17.BM.full=.hazard.ratio.cat(all.dt[specimenType == "Bone Marrow Aspirate",], split.col="LSC17", type="median"),
+    #young BM
+    PEAR1.BM.young=.hazard.ratio.cat(all.dt[age_cut == "young" & specimenType == "Bone Marrow Aspirate",], split.col="PEAR1", type="median"),
+    LSC17.BM.young=.hazard.ratio.cat(all.dt[age_cut == "young" & specimenType == "Bone Marrow Aspirate",], split.col="LSC17", type="median")
+    
+  ), idcol="version")
+  
+  
+  med.res.dt[,c("pred", "tissue", "cohort"):=tstrsplit(version, "\\.")]
+  
+  comb.res.dt <- rbind(cbind(ctree.res.dt, type="ctree"), cbind(med.res.dt[,names(ctree.res.dt),with=F], type="median"))
+  comb.res.dt[,worked:=T]
+  
+  comb.res.dt[is.na(exp.coef.), `:=`(exp.coef.=1, lower..95=1, upper..95=1, worked=F)]
+  
+  p3 <- ggplot(data=comb.res.dt, mapping=aes(y=version, x=exp.coef., xmin=lower..95, xmax=upper..95, color=type, alpha=worked)) + geom_pointrange(position = position_dodge(width=.75)) +
+    geom_vline(xintercept=1, linetype="dashed") +
+    scale_alpha_manual(values=c(`TRUE`=1, `FALSE`=.1), guide="none") + 
+    scale_color_manual(values=c(ctree="black", median="darkgrey"), name="Split Type") +
     facet_grid(tissue+cohort~., scales="free_y", labeller=function(x) lapply(x, .capwords)) + 
     scale_y_discrete(labels=function(x) sapply(strsplit(x, "\\."), "[[", 1)) + 
     theme_bw() + ylab("") + xlab("Hazard Ratio (+/- 95% CI)")
   
-  ggsave(p1, file="figures/pear1_vs_lsc17_hr.pdf", width=84/25.4, height=3)
+  ggsave(p3, file="figures/pear1_vs_lsc17_hr.pdf", width=4.4, height=4)
   
   return("figures/pear1_vs_lsc17_hr.pdf") 
 }
@@ -785,39 +968,49 @@ ven.pano.plot <- function(inhib, features){
   
 }
 
-sora.inter.inter.plot <- function(inhib, features){
+sora.inter.inter.plot <- function(inhib, features, inh.inters){
   
-  mlt.feats <- melt(features, measure.vars=c("Monocyte.like", "Progenitor.like"), id.vars=c("ptid", "mut.FLT3_ITD"), variable.factor=F)
+  mlt.feats <- melt(features, measure.vars=names(features)[grepl("like", names(features))], id.vars=c("ptid", "mut.FLT3_ITD"), variable.factor=F)
   
   inhib.m <- merge(inhib[inhibitor %in% c("Sorafenib")], mlt.feats[is.na(mut.FLT3_ITD ) == F & is.na(value) == F], by="ptid")
   
   inhib.m[,variable:=sub("[\\._]", "-", variable)]
   
-  s.examp <- ggplot(data=inhib.m[inhibitor == "Sorafenib"], mapping=aes(y=auc, x=value, fill=value)) +
+  sig.sor <- inh.inters[inhibitor == "Sorafenib" & gene == "mut.FLT3_ITD"][order(pval)]
+  sig.sor[,dots:=""]
+  sig.sor[qval < .1, dots:="*"]
+  sig.sor[qval < .05, dots:=paste0(dots, "*")]
+  sig.sor[,mut.FLT3_ITD:=1]
+  sig.sor[,ct_fac:=factor(sub("[\\._]", "-", ct), levels=sub("[\\._]", "-", ct), ordered=T)]
+  
+  inhib.m[,ct_fac:=factor(variable, levels=sig.sor[,sub("[\\._]", "-", ct)], ordered=T)]
+  
+  s.examp <- ggplot(data=inhib.m, mapping=aes(y=auc, x=value, fill=value)) +
     geom_point(shape=21, size=3, alpha=.5) + 
     geom_smooth(method="lm", formula=y~x, se=F) +
+    geom_text(data=sig.sor, mapping=aes(x=8, y=10, label=dots), size=10,  inherit.aes=F) +
     viridis::scale_fill_viridis(option="plasma", end=.9, guide="none") +
-    facet_grid(variable~ifelse(mut.FLT3_ITD==1, "FLT3-ITD Positive", "FLT3-ITD Negative")) +
+    facet_grid(ct_fac~ifelse(mut.FLT3_ITD==1, "FLT3-ITD Positive", "FLT3-ITD Negative")) +
     theme_bw()  + xlab("Cell-type Score") + ylab("Sorafenib AUC") +
     theme(axis.text = element_text(family="Arial", size=8),
           text=element_text(family="Arial", size=8),
           strip.text=element_text(family="Arial", size=8))
   
-  ggsave(s.examp, file="figures/sora_inter_examp_v1.pdf", width=6.85, height=5)
+  ggsave(s.examp, file="figures/sora_inter_examp_v1.pdf", width=6.85, height=6)
   
 }
 
-pear.tissue.surv.plot <- function(p1.dt, p1.splits){
+pear.tissue.surv.plot <- function(p1.dt){
   
-  p1.df <- as.data.frame(p1.dt[is.na(overallSurvival)==F & is.na(isDead)==F])
+  p1.df <- as.data.frame(p1.dt)
   
   #BM
   
-  bm.surv <- .surv.plot.from.tree(p1.df[p1.df$tissue == "BM",], p1.splits$BM, var.name="PEAR1", subset.descr="Bone Marrow Samples")
+  bm.surv <- .surv.plot.from.tree(p1.df[p1.df$tissue == "BM",], var.name="PEAR1", subset.descr="Bone Marrow Samples")
   
   #PB
   
-  pb.surv <- .surv.plot.from.tree(p1.df[p1.df$tissue == "PB/Leuk",], p1.splits$PB, var.name="PEAR1", subset.descr="PB/Leuk. Samples")
+  pb.surv <- .surv.plot.from.tree(p1.df[p1.df$tissue == "PB/Leuk",], var.name="PEAR1", subset.descr="PB/Leuk. Samples")
   
   #now in the young subset
   
@@ -825,11 +1018,11 @@ pear.tissue.surv.plot <- function(p1.dt, p1.splits){
   
   #BM Young
   
-  ybm.surv <- .surv.plot.from.tree(young.df[young.df$tissue == "BM",], p1.splits$young_BM, var.name="PEAR1", subset.descr="Bone Marrow Young Patients")
+  ybm.surv <- .surv.plot.from.tree(young.df[young.df$tissue == "BM",], var.name="PEAR1", subset.descr="Bone Marrow Young Patients")
   
   #PB Young
   
-  ypb.surv <- .surv.plot.from.tree(young.df[young.df$tissue == "PB/Leuk",], p1.splits$young_PB, var.name="PEAR1", subset.descr="PB/Leuk. Young Patients")
+  ypb.surv <- .surv.plot.from.tree(young.df[young.df$tissue == "PB/Leuk",], var.name="PEAR1", subset.descr="PB/Leuk. Young Patients")
   
   ggsave(
     pb.surv$plot + 
@@ -858,46 +1051,26 @@ pear.tissue.surv.plot <- function(p1.dt, p1.splits){
   
 }
 
-pear1.vs.lsc17.all.plot <- function(p1.dt, lsc17.dt){
+pear1.vs.lsc17.both.median.split <- function(p1.dt, lsc17.dt){
   
-  p1.lsc <- merge(p1.dt, lsc17.dt, by="ptid")
+  p1.lsc <- merge(p1.dt[diseaseStageAtSpecimenCollection == "Initial Diagnosis" & is.na(overallSurvival)==F & is.na(isDead)==F], lsc17.dt, by="ptid")
   
-  p1.lsc.df <- as.data.frame(p1.lsc[is.na(overallSurvival)==F & is.na(isDead)==F,])
+  p1.lsc[,pear1_cat:=ifelse(PEAR1 > median(PEAR1), "high", "low")]
+  p1.lsc[,lsc17_cat:=ifelse(LSC17 > median(LSC17), "high", "low")]
   
-  p1.lsc.df$category <- ifelse(p1.lsc.df$LSC17 > median(p1.lsc.df$LSC17, na.rm=T), "high", "low")
+  p1.lsc.df <- as.data.frame(p1.lsc)
   
-  lsc.fit <- survfit(Surv(time=overallSurvival, event=isDead, type="right") ~  category, data = p1.lsc.df) 
+  lsc.surv <- .surv.plot.from.tree(p1.lsc.df, var.name="LSC17", subset.descr="All Initial Diagnosis")
   
-  lsc.surv <- ggsurvplot(lsc.fit, data = p1.lsc.df, pval=T, ggtheme=theme_bw()) + ggtitle("LSC17 All Patients")
+  p1.surv <- .surv.plot.from.tree(p1.lsc.df, var.name="PEAR1", subset.descr="All Initial Diagnosis")
   
-  #determine cutpoint, could be done earlier
+  #now split using median same as above
   
-  p1.tree <- ctree(Surv(time=overallSurvival, event=isDead, type="right") ~  PEAR1, 
-                   data = p1.lsc.df, 
-                   control=ctree_control(mincriterion = 0.95, minbucket=20, maxdepth=1))
+  p.m.fit <- survfit(Surv(time=overallSurvival, event=isDead, type="right") ~  pear1_cat, data = p1.lsc.df) 
+  p.m.surv <- ggsurvplot(p.m.fit, data =  p1.lsc.df, pval=T, ggtheme=theme_bw()) + ggtitle("PEAR1 (All Initial Diagnosis; median)")
   
-  p1.surv <- .surv.plot.from.tree(p1.lsc.df, p1.tree, var.name="PEAR1", subset.descr="All Patients")
-  
-  
-  #now limited to BM
-  
-  p1.lsc.bm.df <- as.data.frame(p1.lsc[tissue == "BM" & is.na(overallSurvival)==F & is.na(isDead)==F,])
-  
-  #redo the cutoffs for LSC17
-  
-  p1.lsc.bm.df$bm_category <- ifelse(p1.lsc.bm.df$LSC17 > median(p1.lsc.bm.df$LSC17, na.rm=T), "high", "low")
-  
-  lsc.bm.fit <- survfit(Surv(time=overallSurvival, event=isDead, type="right") ~  bm_category, data = p1.lsc.bm.df) 
-  
-  lsc.bm.surv <- ggsurvplot(lsc.bm.fit, data = p1.lsc.bm.df, pval=T, ggtheme=theme_bw()) + ggtitle("LSC17 Bone Marrow Samples All Patients")
-  
-  #determine cutpoint, could be done earlier
-  
-  p1.bm.tree <- ctree(Surv(time=overallSurvival, event=isDead, type="right") ~  PEAR1, 
-                      data = p1.lsc.bm.df, 
-                      control=ctree_control(mincriterion = 0.95, minbucket=20, maxdepth=1))
-  
-  p1.bm.surv <- .surv.plot.from.tree(p1.lsc.bm.df, p1.bm.tree, var.name="PEAR1", subset.descr="Bone Marrow Samples All Patients")
+  lsc.m.fit <- survfit(Surv(time=overallSurvival, event=isDead, type="right") ~  lsc17_cat, data = p1.lsc.df) 
+  lsc.m.surv <- ggsurvplot(lsc.m.fit, data =  p1.lsc.df, pval=T, ggtheme=theme_bw()) + ggtitle("LSC17 (All Initial Diagnosis; median)")
   
   ggsave(p1.surv$plot + 
            theme(
@@ -909,19 +1082,19 @@ pear1.vs.lsc17.all.plot <- function(p1.dt, lsc17.dt){
              text=element_text(family="Arial", size=8),
              axis.text = element_text(family="Arial", size=8)
            ) +
-           p1.bm.surv$plot + 
+           p.m.surv$plot + 
            theme(
              text=element_text(family="Arial", size=8),
              axis.text = element_text(family="Arial", size=8)
            ) +
-           lsc.bm.surv$plot + 
+           lsc.m.surv$plot + 
            theme(
              text=element_text(family="Arial", size=8),
              axis.text = element_text(family="Arial", size=8)
            ) +
-           plot_layout(ncol=2), file="figures/pear1_lsc17_all_bm.pdf", width=8, height=174/24.5)
+           plot_layout(ncol=2), file="figures/pear1_lsc17_both_split_median.pdf", width=8, height=174/24.5)
   
-  return("figures/pear1_lsc17_all_bm.pdf")
+  return("figures/pear1_lsc17_both_split_median.pdf")
   
 }
 
@@ -959,11 +1132,11 @@ pear1.assocs.plot <- function(p1.dt, features){
 
 pear1.aml.type.plot <- function(clin, p1.dt, vg.scores, wv.cols){
   
-  rna.clin <- clin[manuscript_rnaseq=="yes" & dxAtSpecimenAcquisition %in% c("ACUTE MYELOID LEUKAEMIA (AML) AND RELATED PRECURSOR NEOPLASMS", "ACUTE LEUKAEMIAS OF AMBIGUOUS LINEAGE")==T]
+  rna.clin <- clin[manuscript_rnaseq=="yes" & diseaseStageAtSpecimenCollection == "Initial Diagnosis"]
   
   rcp <- merge(p1.dt[,.(ptid, PEAR1)], rna.clin, by="ptid")
   
-  mlt.type <- suppressWarnings(melt(rcp, measure.vars=c("isDenovo", "isTransformed", "isTherapy", "isRelapse"), id.vars=c("ptid", "cohort" ,"PEAR1"), variable.factor=F))
+  mlt.type <- suppressWarnings(melt(rcp, measure.vars=c("isDenovo", "isTransformed", "isTherapy"), id.vars=c("ptid", "cohort" ,"PEAR1"), variable.factor=F))
   mlt.sum <- mlt.type[value %in% c("TRUE"),.(type=paste(unique(variable), collapse=";")), by=.(ptid, cohort, PEAR1)]
   #only a couple
   mlt.sum <- mlt.sum[grepl(";", type)==F]
@@ -971,7 +1144,6 @@ pear1.aml.type.plot <- function(clin, p1.dt, vg.scores, wv.cols){
   devtra <- rbindlist(
     list(
       dtrans=data.table(tidy(t.test(PEAR1~type,data=mlt.sum[type %in% c("isDenovo", "isTransformed")]))),
-      drel=data.table(tidy(t.test(PEAR1~type,data=mlt.sum[type %in% c("isDenovo", "isRelapse")]))),
       dther=data.table(tidy(t.test(PEAR1~type,data=mlt.sum[type %in% c("isDenovo", "isTherapy")])))
     ), idcol="type"
   )
@@ -983,14 +1155,10 @@ pear1.aml.type.plot <- function(clin, p1.dt, vg.scores, wv.cols){
   plot1 <- ggplot(data=mlt.sum, mapping=aes(x=type_fac, y=PEAR1)) + geom_boxplot(outlier.shape=NA) +
     geom_jitter(height=0, width=.1, shape=21, size=2, mapping=aes(fill=sub("Waves", "Waves ", cohort)), alpha=.85) +
     scale_fill_manual(values=wv.cols, name="Cohort") +
-    annotate("segment", x=1, xend=4, y=9.75, yend=9.75) +
-    annotate("segment", x=1, xend=1, y=9.5, yend=10) +
-    annotate("segment", x=4, xend=4, y=9.5, yend=10) +
-    annotate("text", x=2.5, y=10.25, label=paste("Pvalue <", signif(devtra[type == "dtrans"]$p.value, 3)), family="Arial", size=8/ggplot2:::.pt) +
     annotate("segment", x=1, xend=3, y=8.75, yend=8.75) +
     annotate("segment", x=1, xend=1, y=8.5, yend=9) +
     annotate("segment", x=3, xend=3, y=8.5, yend=9) +
-    annotate("text", x=2, y=9.25, label=paste("Pvalue :", signif(devtra[type == "drel"]$p.value, 3)), family="Arial", size=8/ggplot2:::.pt) +
+    annotate("text", x=2, y=9.25, label=paste("Pvalue <", signif(devtra[type == "dtrans"]$p.value, 3)), family="Arial", size=8/ggplot2:::.pt) +
     annotate("segment", x=1, xend=2, y=7.75, yend=7.75) +
     annotate("segment", x=1, xend=1, y=7.5, yend=8) +
     annotate("segment", x=2, xend=2, y=7.5, yend=8) +
@@ -1024,65 +1192,6 @@ pear1.aml.type.plot <- function(clin, p1.dt, vg.scores, wv.cols){
   ggsave(plot1 + lplot + plot_layout(widths=c(1.25, 2)), file="figures/pear1_vs_aml_type.pdf", width=174/24.5, height=4)
   
   return("figures/pear1_vs_aml_type.pdf")
-}
-
-dentrans.ct.pano.plot <- function(detrans.vg.ct.list, ct.ord){
-  
-  vg.cast.inh <- detrans.vg.ct.list$vg_inh
-  vg.sum <- detrans.vg.ct.list$vg_sum
-  
-  use.drugs <- vg.cast.inh[inhibitor %in% c("Panobinostat")]
-  use.drugs[,drug_fac:=factor(inhibitor, levels=c("Panobinostat"), ordered=T)]
-  
-  bplot <- ggplot(data=use.drugs, mapping=aes(x=cats, y=auc, color=cats)) + 
-    geom_boxplot(outlier.shape=NA) + geom_jitter(height=0, width=.1, size=3, shape=21, mapping=aes(fill=cats),  alpha=.25) +
-    facet_wrap(~cohort) +
-    scale_color_discrete(guide="none") +
-    scale_fill_discrete(guide="none") +
-    theme_bw() + xlab("") + ylab("Panobinostat AUC") + theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
-    theme(axis.text = element_text(family="Arial", size=8),
-          text=element_text(family="Arial", size=8),
-          strip.text=element_text(family="Arial", size=8),
-          legend.text=element_text(family="Arial", size=8))
-  
-  lplot <- ggplot(data=use.drugs, mapping=aes(x=`Monocyte-like`, y=auc, fill=cats, color=cats)) + geom_point(size=3, shape=21, alpha=.25) +
-    geom_smooth(method="lm", formula=y~x, se=F) +
-    facet_wrap(~cohort, scales="free_x") +
-    theme_bw() + ylab("Panobinostat AUC") + guides(color=guide_legend(title=""), fill=guide_legend(title="")) +
-    theme(axis.text = element_text(family="Arial", size=8),
-          text=element_text(family="Arial", size=8),
-          strip.text=element_text(family="Arial", size=8),
-          legend.text=element_text(family="Arial", size=8),
-          legend.position = "bottom")
-  
-  
-  t.res <- rbindlist(lapply(split(vg.sum, by=c("cohort", "vg_type")), function(x){
-    
-    as.data.table(tidy(t.test(PC1~cats, data=x)))
-    
-  }), idcol="cohort_type")
-  
-  t.res[,c("cohort", "vg_type"):=tstrsplit(cohort_type, "\\.")]
-  
-  t.res[,vg_fac:=factor(vg_type, levels=ct.ord, ordered=T)]
-  
-  dt.vg.plot <- ggplot(data=vg.sum, mapping=aes(x=cats, y=PC1)) + geom_boxplot(outlier.shape=NA) +
-    geom_jitter(height=0, width=.1) + facet_grid(cohort~vg_fac) +
-    scale_color_manual(values=c(`TRUE`="red", `FALSE`="black")) +
-    scale_y_continuous(expand=expansion(add=c(0, 5))) +
-    geom_text(data=t.res, mapping=aes(label=paste("Pvalue:", signif(p.value, 3)), color=p.value < .05, x=1.5, y=11), family="Arial", size=8/ggplot2:::.pt) +
-    theme_bw() + xlab("") + ylab("Cell-type Score") +
-    theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)) +
-    theme(axis.text = element_text(family="Arial", size=8),
-          text=element_text(family="Arial", size=8),
-          strip.text=element_text(family="Arial", size=8),
-          legend.text=element_text(family="Arial", size=8),
-          legend.position = "bottom")
-  
-  ggsave((dt.vg.plot) / (bplot + lplot), file="figures/denovo_trans_vg_type_v2.pdf", width=174/24.5, height=174/24.5)
-  
-  return("figures/denovo_trans_vg_type_v2.pdf")
-  
 }
 
 

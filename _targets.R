@@ -3,7 +3,7 @@ source("R/preprocess.R")
 source("R/figures.R")
 source("R/summarization.R")
 source("R/analysis_helpers.R")
-tar_option_set(packages=c("extrafont","data.table", "openxlsx", "ggplot2", "ggrepel", "patchwork", "ComplexHeatmap", "survival", "survminer", "party", "broom", "qvalue", "viridis", "RColorBrewer", "GSVA"))
+tar_option_set(packages=c("extrafont","data.table", "openxlsx", "ggplot2", "ggrepel", "patchwork", "ComplexHeatmap", "survival", "survminer", "partykit", "broom", "qvalue", "viridis", "RColorBrewer", "GSVA"))
 
 list(
   
@@ -11,7 +11,7 @@ list(
   
   tar_target(
     clin_wkst,
-    "data/beataml_wv1to4_clinical_summary_worksheet_12_01_2021_public.xlsx",
+    "data/Table_S1.xlsx",
     format = "file"
   ),
   
@@ -64,7 +64,7 @@ list(
   
   tar_target(
     ct_colors,
-    setNames(wesanderson::wes_palette("IsleofDogs1", n=6, type="continuous"), ct_order)
+    setNames(as.character(wesanderson::wes_palette("IsleofDogs1", n=6, type="continuous")), ct_order)
   ),
   
   #pre-processing
@@ -130,6 +130,11 @@ list(
   ),
   
   tar_target(
+    p1_denovo_surv,
+    pear1.rna.denovo.survival(p1_rna)
+  ),
+  
+  tar_target(
     lsc17,
     compute.lsc17(comb_exprs)
   ),
@@ -182,18 +187,8 @@ list(
   ),
   
   tar_target(
-    p1_overall_splits,
-    overall.pear1.trees(p1_rna)
-  ),
-  
-  tar_target(
     combined_kme_map,
     combined.kmes(comb_exprs,wgcna_maps, wgcna_mes)
-  ),
-  
-  tar_target(
-    detrans_vg_ct_data,
-    detrans.by.vg.by.celltype(clin_data, vg_scores, inhib_data, ct_order)
   ),
   
   #main figures
@@ -295,39 +290,44 @@ list(
   ),
   
   tar_target(
-    figure6a1,
-    stree.plot(ctree_results),
-    format = "file"
-  ),
-  
-  tar_target(
-    figure6a2,
-    stree.summary.plot(ctree_results, p1_rna),
+    figure6a,
+    clinical.vs.features.plot(clin_data, feature_data, wgcna_maps),
     format = "file"
   ),
   
   tar_target(
     figure6b,
-    m3.pear1.hsc.plot(ctree_results, p1_overall_splits, combined_kme_map, comb_exprs, vg_scores, wgcna_mes),
+    m3.pear1.hsc.plot(combined_kme_map, comb_exprs, vg_scores, wgcna_mes),
     format = "file"
   ),
   
   tar_target(
+    figure6c1,
+    stree.plot(ctree_results),
+    format = "file"
+  ),
+  
+  tar_target(
+    colors_figure6c,
+    stree.summary.plot(ctree_results),
+  ),
+  
+  tar_target(
     figure7a,
-    pear1.eln.plot(p1_rna, p1_overall_splits),
+    pear1.eln.plot(p1_rna),
     format = "file"
   ),
   
   tar_target(
     figure7b,
-    pear1vslsc17(p1_rna,lsc17, p1_overall_splits),
+    pear1vslsc17(p1_denovo_surv,lsc17),
     format = "file"
   ),
   
   tar_target (
-    figure7c,
-    pear1vslsc17.hr(p1_rna, lsc17),
-    format = "file"
+   figure7c,
+   pear1vslsc17.hr(p1_denovo_surv, lsc17),
+   format = "file"
   ),
   
   tar_target(
@@ -376,37 +376,31 @@ list(
   
   tar_target(
     figureS3b,
-    sora.inter.inter.plot(inhib_data, feature_data),
+    sora.inter.inter.plot(inhib_data, feature_data, inhib_inters),
     format = "file"
   ),
   
   tar_target(
     figureS4abcd,
-    pear.tissue.surv.plot(p1_rna, p1_overall_splits),
+    pear.tissue.surv.plot(p1_denovo_surv),
     format = "file"
   ),
   
   tar_target(
-    figureS5abcd,
-    pear1.vs.lsc17.all.plot(p1_rna, lsc17),
-    format = "file"
-  ),
-  
-  tar_target(
-    figureS6a,
-    pear1.assocs.plot(p1_rna, feature_data),
-    format = "file"
-  ),
-  
-  tar_target(
-    figureS6bc,
+    figureS5ab,
     pear1.aml.type.plot(clin_data, p1_rna, vg_scores, wv_colors),
     format = "file"
   ),
   
   tar_target(
-    figureS7,
-    dentrans.ct.pano.plot(detrans_vg_ct_data, ct_order),
+    figureS5c,
+    pear1.assocs.plot(p1_rna, feature_data),
+    format = "file"
+  ),
+  
+  tar_target(
+    figureS6abcd,
+    pear1.vs.lsc17.both.median.split(p1_rna, lsc17),
     format = "file"
   )
   

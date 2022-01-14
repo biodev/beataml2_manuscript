@@ -104,7 +104,21 @@
   inter.dt
 }
 
-.hazard.ratio <- function(use.df, split.col, type=c("tree", "median")){
+.hazard.ratio <- function(use.dt, surv.col){
+  
+  use.df <- as.data.frame(use.dt)
+  
+  use.df$var <- use.df[[surv.col]]
+  
+  ph.sum <- summary(coxph(Surv(time=overallSurvival, event=isDead, type="right") ~  var, data=use.df))
+  
+  ph.res <- as.data.table(ph.sum$conf.int)
+  names(ph.res) <- make.names(names(ph.res))
+  
+  ph.res
+}
+
+.hazard.ratio.cat <- function(use.df, split.col, type=c("tree", "median"), minc=.95, minb=20){
   
   type <- match.arg(type)
   
@@ -114,13 +128,17 @@
     
     use.tree <- ctree(use.form, 
                       data = use.df, 
-                      control=ctree_control(mincriterion = 0.95, minbucket=20, maxdepth=1))
+                      control=ctree_control(mincriterion = minc, minbucket=minb, maxdepth=1))
     
-    use.df$split <- factor(ifelse(use.df[[split.col]] <=use.tree@tree$psplit$splitpoint, "low", "high"), levels=c("low", "high"))
+    if (depth(use.tree) == 0){
+      return(data.table(exp.coef.=NA_real_, exp..coef.=NA_real_, lower..95=NA_real_, upper..95=NA_real_, n_high=NA_real_, n_low=NA_real_))
+    }
     
-    stopifnot(sum(diag(table(use.df$split, where(use.tree)))) == nrow(use.df))
+    use.df$split <- factor(ifelse(use.df[[split.col]] <=split_node(node_party(use.tree[[1]]))$breaks, "low", "high"), levels=c("low", "high"))
     
-  }else{
+    stopifnot(sum(diag(table(use.df$split, predict(use.tree, type="node")))) == nrow(use.df))
+    
+  }else if (type == "median"){
     
     use.med <- median(use.df[[split.col]], na.rm=T)
     
@@ -135,17 +153,23 @@
   
   ph.res <- cbind(ph.res, n_high=sum(use.df$split == "high"), n_low=sum(use.df$split == "low"))
   
-  ph.res
+  return(ph.res)
 }
 
-.surv.plot.from.tree <- function(use.df, tree.fit, var.name="PEAR1", subset.descr=""){
+.surv.plot.from.tree <- function(use.df, var.name="PEAR1", subset.descr=""){
   
   use.df$split <- paste("All", var.name)
   split.point <- ""
   
-  if (is.null(tree.fit@tree$psplit$splitpoint)==F){
-    use.df$split <- ifelse(use.df[[var.name]] <=tree.fit@tree$psplit$splitpoint, "low", "high")
-    split.point <- paste("; Split:", round(tree.fit@tree$psplit$splitpoint, digits=3))
+  use.form <- as.formula(paste("Surv(time=overallSurvival, event=isDead, type='right') ~  ", var.name))
+  
+  tree.fit <- ctree(use.form, 
+                   data = use.df, 
+                   control=ctree_control(mincriterion = 0.95, minbucket=20, maxdepth=1))
+  
+  if (depth(tree.fit) > 0){
+    use.df$split <- ifelse(use.df[[var.name]] <=split_node(node_party(tree.fit[[1]]))$breaks, "low", "high")
+    split.point <- paste("; Split:", round(split_node(node_party(tree.fit[[1]]))$breaks, digits=3))
   }
   
   use.fit <- survfit(Surv(time=overallSurvival, event=isDead, type="right") ~  split, data = use.df) 

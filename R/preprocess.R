@@ -2,12 +2,7 @@ clinical.for.genomic.analysis <- function(clin.wkst){
   
   clin.dt <- data.table(read.xlsx(clin.wkst))
   
-  #specimenGroup filtered on text contains "Initial". I got 582 out of 913 AML/ALALs for 63.75%.
-  
-  clin.dt[,isInitial:=grepl("Initial", specimenGroups)]
-  clin.dt[,isTherapy:=SpecificDxAtAcquisition=="Therapy-related myeloid neoplasms"]
-  
-  stopifnot(clin.dt[dxAtSpecimenAcquisition %in% c("ACUTE MYELOID LEUKAEMIA (AML) AND RELATED PRECURSOR NEOPLASMS", "ACUTE LEUKAEMIAS OF AMBIGUOUS LINEAGE") & isInitial==T,.N] == 582)
+  clin.dt[,isTherapy:=specificDxAtAcquisition=="Therapy-related myeloid neoplasms"]
   
   #limit to one sample per datatype
   
@@ -23,7 +18,7 @@ clinical.for.genomic.analysis <- function(clin.wkst){
   use.clin[,age_cut:=cut(ageAtDiagnosis, labels=c("young", "middle", "older", "oldest"), breaks=c(-1, 45, 60, 75, 100))]
   
   #as the other diagnoses are reported differently
-  use.clin[dxAtSpecimenAcquisition %in% c("ACUTE MYELOID LEUKAEMIA (AML) AND RELATED PRECURSOR NEOPLASMS", "ACUTE LEUKAEMIAS OF AMBIGUOUS LINEAGE") == F, `:=`(overallSurvival=NA_real_, vitalStatus=NA_character_, isInitial=NA)]
+  #use.clin[dxAtSpecimenAcquisition %in% c("ACUTE MYELOID LEUKAEMIA (AML) AND RELATED PRECURSOR NEOPLASMS", "ACUTE LEUKAEMIAS OF AMBIGUOUS LINEAGE") == F, `:=`(overallSurvival=NA_real_, vitalStatus=NA_character_, isInitial=NA)]
   
   use.clin[vitalStatus=="Unknown",vitalStatus:=NA_character_]
   use.clin[overallSurvival <= 0, overallSurvival:=NA_real_]
@@ -323,7 +318,7 @@ mutation.expression.features <- function(vg.scores, comb.mes, mut.list, clin){
   #first modules
   me.dt <- dcast(ptid~module, value.var="PC1",data=comb.mes[module != "M0"])
   
-  me.dt <- merge(me.dt, comb.mes[module == "M0",.(ptid, M0.PC1=PC1, M0.PC2=PC2, M0.PC3=PC3, M0.PC4=PC4, M0.PC5=PC5 )], by="ptid")
+  #me.dt <- merge(me.dt, comb.mes[module == "M0",.(ptid, M0.PC1=PC1, M0.PC2=PC2, M0.PC3=PC3, M0.PC4=PC4, M0.PC5=PC5 )], by="ptid")
   
   #then cell-types
   
@@ -415,11 +410,18 @@ pear1.rna.clinical <- function(exprs, clin){
   
   rna.clin <- clin[manuscript_rnaseq=="yes"]
   
-  p1.dt <- cbind(rna.clin[,.(ptid, overallSurvival, isDead, specimenType, ELN2017, age_cut, isInitial, isDenovo, isRelapse, isTransformed, isTherapy)], PEAR1=exprs[rna.clin$ptid,"PEAR1"])
+  p1.dt <- cbind(rna.clin[,.(ptid, overallSurvival, isDead, specimenType, ELN2017, age_cut, isDenovo, isTransformed, isTherapy, diseaseStageAtSpecimenCollection)], PEAR1=exprs[rna.clin$ptid,"PEAR1"])
   p1.dt[,tissue:=ifelse(specimenType == "Bone Marrow Aspirate", "BM", "PB/Leuk")]
   
   p1.dt
   
+}
+
+pear1.rna.denovo.survival <- function(p1.rna){
+  
+  p1.surv <- p1.rna[is.na(overallSurvival)==F & is.na(isDead)==F & isDenovo == "TRUE"]
+  
+  return(p1.surv)
 }
 
 compute.lsc17 <- function(exprs){
@@ -448,10 +450,6 @@ compute.lsc17 <- function(exprs){
   stopifnot(length(common.genes) == 17)
   
   lsc17.score <- exprs[,names(lsc17.coefs)] %*% lsc17.coefs
-  
-  #median determines low vs high
-  
-  lsc17.med <- median(lsc17.score)
   
   #should compute median per cohort
   lsc.dt <- data.table(ptid=rownames(lsc17.score), LSC17=lsc17.score[,1])

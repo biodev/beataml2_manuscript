@@ -194,10 +194,11 @@ write.fam.cor.inter <- function(inters, cors, family.list){
 }
 
 survival.trees <- function(feats, clin){
-  
-  rna.clin <- clin[manuscript_rnaseq == "yes"]
+
+  rna.clin <- clin[manuscript_rnaseq == "yes" & isDenovo == "TRUE" & is.na(overallSurvival)==F & is.na(isDead)==F]
   
   rna.clin.m <- merge(rna.clin, feats, by="ptid")
+  
   rna.clin.m$value <- 1
   
   age.cast <- dcast(ptid~age_cut, value.var="value", data=rna.clin.m[is.na(age_cut)==F], fun.aggregate=function(x) as.integer(length(x) > 0), fill=0L)
@@ -212,47 +213,27 @@ survival.trees <- function(feats, clin){
   
   rna.clin.df <- rna.clin.df[complete.cases(rna.clin.df),]
   
-  #works the same with/without minbucket
-  s.tree <- ctree(Surv(time=overallSurvival, event=isDead, type="right") ~  ., data = rna.clin.df, control=ctree_control(mincriterion = 0.95, minbucket=20))
+  set.seed(3252)
   
-  sample.nodes <- data.table(ptid=rownames(rna.clin.df))
-  sample.nodes[,node:=where(s.tree)]
+  fors.tr <- cforest(Surv(time=overallSurvival, event=isDead, type="right")~., data=rna.clin.df, 
+                     control=ctree_control(teststat="quad", testtype="Univ", mincriterion = 0, saveinfo = FALSE),
+                     ntree=1000,
+                     perturb = list(replace = FALSE, fraction = 0.632))
   
-  list(tree=s.tree, nodes=sample.nodes, data=rna.clin.df)
+  preds <-  predict(fors.tr, type='response', OOB=T)
   
-}
-
-overall.pear1.trees <- function(p1.dt){
+  preds[is.infinite(preds)] <- max(preds[is.infinite(preds)==F])
   
-  p1.df <- as.data.frame(p1.dt[is.na(overallSurvival)==F & is.na(isDead)==F])
+  test.df <- rna.clin.df[,-c(1:2)]
   
-  comb.tree <- ctree(Surv(time=overallSurvival, event=isDead, type="right") ~  PEAR1, 
-                     data = p1.df, 
-                     control=ctree_control(mincriterion = 0.95, minbucket=20, maxdepth=1))
+  test.df <- cbind(preds, test.df)
   
-  bm.tree <- ctree(Surv(time=overallSurvival, event=isDead, type="right") ~  PEAR1, 
-                   data = p1.df[p1.df$tissue == "BM",], 
-                   control=ctree_control(mincriterion = 0.95, minbucket=20, maxdepth=1))
+  test.tree <- ctree(log10(preds) ~  ., data = test.df, control=ctree_control(mincriterion = 0.95, minbucket = 20L))
   
-  pb.tree <- ctree(Surv(time=overallSurvival, event=isDead, type="right") ~  PEAR1, 
-                   data = p1.df[p1.df$tissue == "PB/Leuk",], 
-                   control=ctree_control(mincriterion = 0.95, minbucket=20, maxdepth=1))
+  overall.s.tree <- ctree(Surv(time=overallSurvival, event=isDead, type="right") ~ M3, data=rna.clin.df, control=ctree_control(mincriterion = 0.95, minbucket = 20L))
   
-  young.df <- p1.df[is.na(p1.df$age_cut) == F & p1.df$age_cut == "young",]
+  list(tree=test.tree, data=rna.clin.df, pred_cor=cor( predict(test.tree), log10(test.df$preds)), overall_Mod3_split=overall.s.tree)
   
-  ycomb.tree <- ctree(Surv(time=overallSurvival, event=isDead, type="right") ~  PEAR1, 
-                      data = young.df, 
-                      control=ctree_control(mincriterion = 0.95, minbucket=20, maxdepth=1))
-  
-  ybm.tree <- ctree(Surv(time=overallSurvival, event=isDead, type="right") ~  PEAR1, 
-                    data = young.df[young.df$tissue == "BM",], 
-                    control=ctree_control(mincriterion = 0.95, minbucket=20, maxdepth=1))
-  
-  ypb.tree <- ctree(Surv(time=overallSurvival, event=isDead, type="right") ~  PEAR1, 
-                    data = young.df[young.df$tissue == "PB/Leuk",], 
-                    control=ctree_control(mincriterion = 0.95, minbucket=20, maxdepth=1))
-  
-  list(overall=comb.tree, BM=bm.tree, PB=pb.tree, young_overall=ycomb.tree, young_BM=ybm.tree, young_PB=ypb.tree)
 }
 
 combined.kmes <- function(comb.exprs,wgcna.maps, wgcna.mes){
@@ -284,27 +265,4 @@ write.mod.membership <- function(exprs.file, wgcna.maps, comb.kme){
   
   return("output_files/Table_S7.xlsx")
 }
-
-detrans.by.vg.by.celltype <- function(clin, vg.scores, inhib, ct.ord){
-  
-  rna.clin <- clin[manuscript_rnaseq=="yes" & dxAtSpecimenAcquisition %in% c("ACUTE MYELOID LEUKAEMIA (AML) AND RELATED PRECURSOR NEOPLASMS", "ACUTE LEUKAEMIAS OF AMBIGUOUS LINEAGE")==T]
-  
-  mlt.type <- suppressWarnings(melt(rna.clin, measure.vars=c("isDenovo", "isTransformed"), id.vars=c("ptid", "cohort"), variable.factor=F))
-  mlt.sum <- mlt.type[value %in% c("TRUE"),.(type=paste(unique(variable), collapse=";")), by=.(ptid, cohort)]
-  mlt.sum <- mlt.sum[grepl(";", type)==F]
-  
-  vg.sum <- merge(vg.scores$summary[,.(ptid, vg_type, cohort, PC1)], mlt.sum, by=c("ptid", "cohort"))
-  
-  vg.sum[,cats:=ifelse(type=="isDenovo","Denovo", "Transformed")]
-  
-  vg.sum[,vg_fac:=factor(vg_type, levels=ct.ord, ordered=T)]
-  
-  vg.cast <- dcast(ptid+cohort+cats+type~vg_type, value.var="PC1" ,data=vg.sum)
-  
-  vg.cast.inh <- merge(vg.cast, inhib[,.(ptid, status, inhibitor, auc)], by=c("ptid"), allow.cartesian=T)
-  
-  list(vg_sum=vg.sum, vg_inh=vg.cast.inh)
-  
-}
-
 
