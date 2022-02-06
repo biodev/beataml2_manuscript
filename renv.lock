@@ -435,6 +435,11 @@
       "Repository": "CRAN",
       "Hash": "019388fc48e48b3da0d3a76ff94608a8"
     },
+    "coin": {
+      "Package": "coin",
+      "Version": "1.3-1",
+      "Source": "Repository"
+    },
     "colorspace": {
       "Package": "colorspace",
       "Version": "2.0-0",
