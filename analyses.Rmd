@@ -193,7 +193,7 @@ freqs[symbol == "ASXL1"]
 #  symbol train_prop test_prop  max_prop symb_ord       diff
 #1:  ASXL1 0.08713693 0.1515152 0.1515152    ASXL1 0.06437822
 
-#round(freqs[,mean(diff)]*100, 3)#1.321
+round(freqs[,mean(diff)]*100, 3)#1.321
 
 ```
 
@@ -248,6 +248,7 @@ as.data.table(tidy(lm(PEAR1~PC1*cats, data=hsc.sum[vg_type == "Monocyte-like"]))
 
 library(data.table)
 library(targets)
+library(broom)
 
 clin <- tar_read(clin_data)
 
