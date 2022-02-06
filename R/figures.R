@@ -639,12 +639,12 @@ clinical.vs.features.plot <- function(clin, feats, wgcna.maps){
                 cluster_columns=T, cluster_rows=T, clustering_method_columns="average", clustering_method_rows="average",
                 clustering_distance_columns="euclidean", clustering_distance_rows="euclidean",
                 cluster_row_slices = F, column_split=5, name="T or Z statistic",
-                column_names_gp=gpar(fontfamily="Arial", fontsize=8), 
-                row_names_gp=gpar(fontfamily="Arial", fontsize=8),
+                column_names_gp=gpar(fontfamily="Arial", fontsize=12), 
+                row_names_gp=gpar(fontfamily="Arial", fontsize=12),
                 heatmap_legend_param = list(title_position = "leftcenter", direction = "horizontal",
-                                            title_gp = gpar(fontsize = 8, fontface = "bold", fontfamily="Arial"), labels_gp = gpar(fontsize = 8, fontfamily="Arial")))
+                                            title_gp = gpar(fontsize = 12, fontface = "bold", fontfamily="Arial"), labels_gp = gpar(fontsize = 12, fontfamily="Arial")))
   
-  pdf(file="figures/clin_feature_heatmap_v1.pdf", width=174/24.5, height=174/24.5)
+  pdf(file="figures/clin_feature_heatmap_v1.pdf", width=(174/24.5), height=174/24.5)
   
   draw( ht, heatmap_legend_side = "bottom")
   
@@ -816,12 +816,12 @@ module.waves.overlays <- function(comb.mes, wgcna.maps, wv.cols){
       strip.text.x = element_blank() , 
       strip.background = element_blank(),
       plot.margin = unit( c(0,0,0,0) , units = "lines" ),
-      text=element_text(size=8, family="Arial"),
-      legend.text=element_text(size=8, family="Arial"))
+      text=element_text(size=8),
+      legend.text=element_text(size=8))
   
-  ggsave(comb.plot, file="figures/previous_train_test_overlay_mes.pdf", width=174/24.5, height=3.5)
+  ggsave(comb.plot, file="figures/previous_train_test_overlay_mes.png", width=174/24.5, height=3.5, units="in", dpi=300)
   
-  return("figures/previous_train_test_overlay_mes.pdf")
+  return("figures/previous_train_test_overlay_mes.png")
 }
 
 wgcna.mods.by.drug2 <- function(clin, inhib, wgcna.mes, wgcna.maps){
