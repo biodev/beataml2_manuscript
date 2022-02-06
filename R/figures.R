@@ -5,9 +5,9 @@ mut.freq.by.wave.plot <- function(comb.freq){
     scale_y_continuous(labels=function(x) scales::percent(-x)) +
     theme_bw() + xlab("") + ylab("Wave 1/2 Percentage") +
     theme(
-      text=element_text(family="Arial", size=8),
+      text=element_text( size=8),
       axis.text.y=element_blank(),
-      axis.text.x = element_text(family="Arial", size=8),
+      axis.text.x = element_text( size=8),
       
     )
   
@@ -15,9 +15,9 @@ mut.freq.by.wave.plot <- function(comb.freq){
     scale_y_continuous(labels=scales::percent) +
     theme_bw() + xlab("") + ylab("Wave 3/4 Percentage") +
     theme(
-      text=element_text(family="Arial", size=8),
-      axis.text.x = element_text(family="Arial", size=8),
-      axis.text.y=element_text(hjust=.5, family="Arial", size=8)
+      text=element_text( size=8),
+      axis.text.x = element_text( size=8),
+      axis.text.y=element_text(hjust=.5,  size=8)
     )
   
   #difference
@@ -27,14 +27,14 @@ mut.freq.by.wave.plot <- function(comb.freq){
     scale_fill_manual(values=c(low="blue", high="red"), guide="none") + 
     theme_bw() + xlab("") + ylab("Percentage Difference") +
     theme(
-      text=element_text(family="Arial", size=8),
+      text=element_text( size=8),
       axis.text.y=element_blank(),
-      axis.text.x = element_text(family="Arial", size=8)
+      axis.text.x = element_text( size=8)
     )
   
-  ggsave(p1 + p2 + p3, file="figures/beataml_mut_wave_comp_v1.pdf", width=114/25.4, height=114/25.4)
+  ggsave(p1 + p2 + p3, file="figures/beataml_mut_wave_comp_v1.png", width=114/25.4, height=114/25.4)
   
-  return("figures/beataml_mut_wave_comp_v1.pdf")
+  return("figures/beataml_mut_wave_comp_v1.png")
 }
 
 surv.by.wave.plot <- function(clin.sum){
@@ -46,8 +46,8 @@ surv.by.wave.plot <- function(clin.sum){
   splot <- ggsurvplot(over.wave.fit, data = as.data.frame(over.wave.dt), pval=F, palette=c(`cohort=Waves1+2`="#023FA5", `cohort=Waves3+4`="#7D87B9"), ggtheme=theme_bw())
   
   sv.plot <- splot$plot + theme(
-    text=element_text(family="Arial", size=8),
-    axis.text = element_text(family="Arial", size=8)
+    text=element_text( size=8),
+    axis.text = element_text( size=8)
   )
   
   ggsave(sv.plot, file="figures/survival_by_wave_v1.pdf", width=85/25.4, height=85/25.4)
@@ -63,8 +63,8 @@ denovo.inhib.plot <- function(inhib.sum){
     geom_point() + 
     geom_smooth(method="lm", se=F, formula=y~x) +
     theme_bw() + xlab("Waves1+2 Inhibitor AUC") + ylab("Waves3+4 Inhibitor AUC") +
-    theme(text=element_text(size=8, family="Arial"),
-          axis.text = element_text(family="Arial", size=8))
+    theme(text=element_text(size=8),
+          axis.text = element_text( size=8))
   
   ggsave(mean.clin.plot, file="figures/beataml_wv1to4_inhib_conc_denovo_only_v1.pdf", width=85/25.4, height=85/25.4)
   
@@ -114,9 +114,9 @@ train.test.mut.assocs <- function(inhib, mut.list, wv.cols){
     scale_color_manual(values=c(wv.cols, Both="black", Neither="grey"), name="Significance") +
     theme_bw() + xlab("Waves 1/2 Effect Size") + ylab("Waves 3/4 Effect Size") +
     theme(
-      text=element_text(size=8, family="Arial"),
-      legend.text=element_text(size=8, family="Arial"),
-      axis.text=element_text(size=8, family="Arial")
+      text=element_text(size=8),
+      legend.text=element_text(size=8),
+      axis.text=element_text(size=8)
     )
   
   ggsave(full.glass, file="figures/beataml_waves1to4_tt_assoc_v2.pdf", width=114/25.4, height=85/25.4)
@@ -154,11 +154,11 @@ vg.exprs.plot2 <- function(wgcna.mes, wgcna.maps, vg.scores, ct.ord){
   
   ht <- Heatmap(cor.mat, col=cfun, cluster_rows=F, cluster_columns=T, column_split=col.split, cluster_column_slices=F,
                 heatmap_legend_param = list(title_position = "leftcenter", direction = "horizontal",
-                                            title_gp = gpar(fontsize = 8, fontface = "bold", fontfamily="Arial"), 
-                                            labels_gp = gpar(fontsize = 8, fontfamily="Arial")), 
+                                            title_gp = gpar(fontsize = 8, fontface = "bold"), 
+                                            labels_gp = gpar(fontsize = 8)), 
                 rect_gp = gpar(col = "grey"), border=T, name="Pearsons Corr.", column_title=NULL,
-                column_names_gp=gpar(fontfamily="Arial", fontsize=6), 
-                row_names_gp=gpar(fontfamily="Arial", fontsize=6))
+                column_names_gp=gpar(fontsize=6), 
+                row_names_gp=gpar( fontsize=6))
   
   pdf(file="figures/older_wgcna_heatmap_vg_v2.pdf", width=85/25.4, height=3)
   
@@ -198,11 +198,11 @@ vg.muts.assoc.plot <- function(mut.ct.assocs, ct.ord, ct.colors){
   mct.plot <- ggplot(data=mut.ct.assocs, mapping=aes(x=ct_fac, y=plot_vals, fill=as.character(ct_fac), label=labs)) + 
     scale_fill_manual(values=ct.colors, guide="none") +
     geom_point(position=pos, size=3, shape=21, alpha=.75) +
-    geom_text_repel(position=pos, min.segment.length = 0, seed = 6828, box.padding=.25, family="Arial", size=8/ggplot2:::.pt) +
+    geom_text_repel(position=pos, min.segment.length = 0, seed = 6828, box.padding=.25,  size=8/ggplot2:::.pt) +
     theme_bw() + xlab("") + ylab("signed -log10(Pvalue)") +
     theme(
-      text=element_text(size=8, family="Arial"),
-      axis.text=element_text(size=8, family="Arial"),
+      text=element_text(size=8),
+      axis.text=element_text(size=8),
       axis.text.x = element_text(angle = 45, vjust = 1, hjust=1)
     )
   
@@ -231,9 +231,9 @@ drug.ct.heatmap <- function(all.cors, inh.inters, ct.ord){
     show_annotation_name=F, gap=0)
   
   ht <- Heatmap(ct.sig.mat, cluster_rows=F, cluster_columns=T, clustering_method_columns="average",col=circlize::colorRamp2(breaks=c(-.4, 0, .4), colors=c("red", "white","blue")),
-                heatmap_legend_param = list(title_position = "leftcenter", direction = "horizontal", title_gp = gpar(fontsize = 8, fontface = "bold", fontfamily="Arial"), labels_gp = gpar(fontsize = 8, fontfamily="Arial")), 
+                heatmap_legend_param = list(title_position = "leftcenter", direction = "horizontal", title_gp = gpar(fontsize = 8, fontface = "bold"), labels_gp = gpar(fontsize = 8)), 
                 rect_gp = gpar(col = "grey", lwd=.5), border=T, show_column_names=T, column_title=NULL, column_split=5, name="Correlation", 
-                column_names_gp=gpar(fontfamily="Arial", fontsize=6), row_names_gp=gpar(fontfamily="Arial", fontsize=6),
+                column_names_gp=gpar( fontsize=6), row_names_gp=gpar( fontsize=6),
                 bottom_annotation=hb)
   
   pdf(file="figures/fig3a.pdf", width=174*0.0393701, height=3)
@@ -271,12 +271,12 @@ drug.mut.ct.inter.plot <- function(inh.inters, ct.ord, ct.colors){
     scale_shape_manual(values=sig.shapes, name="Sig. Interaction") +
     scale_alpha_manual(values=c(`TRUE`=1, `FALSE`=.5), guide="none") + 
     scale_size_manual(values=c(`TRUE`=2.5, `FALSE`=1), guide="none") + 
-    geom_text_repel(position=pos, mapping=aes(label=inh), color="black", size=8/ggplot2:::.pt, family="Arial", min.segment.length = 0, box.padding = 0.5, point.padding=.25) +
+    geom_text_repel(position=pos, mapping=aes(label=inh), color="black", size=8/ggplot2:::.pt,  min.segment.length = 0, box.padding = 0.5, point.padding=.25) +
     theme_bw() + xlab("") + ylab("Signed -log10(Pvalue)") + ylim(c(-6, 12)) +
-    theme(axis.text = element_text(family="Arial", size=8),
-          text=element_text(family="Arial", size=8),
+    theme(axis.text = element_text( size=8),
+          text=element_text( size=8),
           legend.position = "bottom",
-          legend.text=element_text(family="Arial", size=8))
+          legend.text=element_text( size=8))
   
   ggsave(inter.plot, file="figures/inhib_ct_inters_v1.pdf", width=6.85, height=4.5)
   
@@ -309,8 +309,8 @@ drug.family.plot <- function(fam.enrich, family.list){
     #geom_text(data=ssg.sum, mapping=aes(x=40, label=paste("(n=", N, ")"))) +
     ylab("") + xlab("ssGSEA") +
     theme_bw() +
-    theme(axis.text = element_text(family="Arial", size=6),
-          text=element_text(family="Arial", size=6))
+    theme(axis.text = element_text( size=6),
+          text=element_text( size=6))
   
   ggsave(ridge.plot, file="figures/ssgsea_ridge_v1.pdf", width=85/25.4, height=4)
   
@@ -335,12 +335,12 @@ family.mut.assoc.plot <- function(comb.assoc){
     geom_point(size=3, shape=21, mapping=aes(alpha=qval < .05)) +
     geom_vline(xintercept=0, linetype="dashed") +
     geom_text_repel(data=comb.assoc[highlight==T], mapping=aes(label=paste(inhibitor, "+", sub("[\\._]", "-", sub("mut\\.", "", gene)))), 
-                    direction="y", min.segment.length = 0,box.padding=.5, xlim=c(-Inf, -2), family="Arial", size=8/ggplot2:::.pt) +
+                    direction="y", min.segment.length = 0,box.padding=.5, xlim=c(-Inf, -2),  size=8/ggplot2:::.pt) +
     scale_fill_manual(values=c(`Up`="blue", `Neither`="black", `Down`="red"), guide="none") +
     scale_alpha_manual(values=c(`TRUE`=.75, `FALSE`=.25), guide="none") +
     theme_bw() + ylab("-log10(Pvalue)") + xlab("Effect Size") + xlim(c(-5, 2)) +
-    theme(axis.text = element_text(family="Arial", size=8),
-          text=element_text(family="Arial", size=8))
+    theme(axis.text = element_text( size=8),
+          text=element_text( size=8))
   
   ggsave(c.volc, file="figures/beataml_waves1to4_family_assoc_v1.pdf", width=85/25.4, height=85/25.4)
   
@@ -370,9 +370,9 @@ family.ct.heatmap <- function(all.cors, family.list, family.inters, ct.ord){
   
   ht <- Heatmap(ct.sig.mat, cluster_rows=F, cluster_columns=T, clustering_method_columns="average", col=circlize::colorRamp2(breaks=c(-.4, 0, .4), colors=c("red", "white","blue")),
                 heatmap_legend_param = list(title_position = "leftcenter", direction = "horizontal",
-                                            title_gp = gpar(fontsize = 8, fontface = "bold", fontfamily="Arial"), labels_gp = gpar(fontsize = 8, fontfamily="Arial")), 
+                                            title_gp = gpar(fontsize = 8, fontface = "bold"), labels_gp = gpar(fontsize = 8)), 
                 rect_gp = gpar(col = "grey"), border=T, show_column_names=T, column_title=NULL, column_split=5, name="Correlation", 
-                bottom_annotation=hb, column_names_gp=gpar(fontfamily="Arial", fontsize=8), row_names_gp=gpar(fontfamily="Arial", fontsize=8))
+                bottom_annotation=hb, column_names_gp=gpar( fontsize=8), row_names_gp=gpar( fontsize=8))
   
   pdf(file="figures/vg_family_mat_v1.pdf", width=85/25.4, height=3.5)
   
@@ -416,12 +416,12 @@ family.mut.ct.inter.plot <- function(family.inters,family.list, ct.ord, ct.color
     scale_alpha_manual(values=c(`TRUE`=1, `FALSE`=.5), guide="none") + 
     scale_size_manual(values=c(`TRUE`=2.5, `FALSE`=1), guide="none") + 
     geom_text_repel(position=pos, mapping=aes(label=inh), color="black", min.segment.length = 0, 
-                    box.padding = 0.5, point.padding=.5, family="Arial", size=8/ggplot2:::.pt) +
+                    box.padding = 0.5, point.padding=.5,  size=8/ggplot2:::.pt) +
     theme_bw() + xlab("") + ylab("Signed -log10(Pvalue)") + ylim(c(-6, 11)) +
     guides(shape = guide_legend(nrow = 2, byrow = F)) +
-    theme(axis.text = element_text(family="Arial", size=8),
-          text=element_text(family="Arial", size=8),
-          legend.text=element_text(family="Arial", size=6),
+    theme(axis.text = element_text( size=8),
+          text=element_text( size=8),
+          legend.text=element_text( size=6),
           legend.position="bottom") +
     theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1))
   
@@ -485,18 +485,18 @@ m3.pear1.hsc.plot <- function(cur.map, comb.exprs, vg.scores, wgcna.mes){
   m3.only <- ggplot(data=m3.map, mapping=aes(x="Mod3 (red)", y=comb_kme, label=label)) +
     geom_boxplot(outlier.shape=NA) +
     geom_point(position=pos, shape=21, alpha=.8, size=3, fill="red") + 
-    geom_text_repel(position = pos, box.padding=.5, min.segment.length=0, family="Arial", size=8/ggplot2:::.pt) +
+    geom_text_repel(position = pos, box.padding=.5, min.segment.length=0,  size=8/ggplot2:::.pt) +
     theme_bw() + xlab("") + ylab("kME") +
-    theme(axis.text = element_text(family="Arial", size=8),
-          text=element_text(family="Arial", size=8))
+    theme(axis.text = element_text( size=8),
+          text=element_text( size=8))
   
   m3.pear <- ggplot(data=hsc.dt, mapping=aes(x=PEAR1, y=M3, fill=`HSC.like`)) + 
     geom_point(shape=21, size=3, alpha=.8) +
     viridis::scale_fill_viridis(option="plasma", end=.9, name="HSC-like") +
     theme_bw() + ylab("Mod3 (red)") + 
-    theme(axis.text = element_text(family="Arial", size=8),
-          text=element_text(family="Arial", size=8),
-          legend.text=element_text(family="Arial", size=8))
+    theme(axis.text = element_text( size=8),
+          text=element_text( size=8),
+          legend.text=element_text( size=8))
   
   ggsave(m3.only + m3.pear, file="figures/pear1vm3_v1.pdf", width=174/24.5, height=4)
   
@@ -639,10 +639,10 @@ clinical.vs.features.plot <- function(clin, feats, wgcna.maps){
                 cluster_columns=T, cluster_rows=T, clustering_method_columns="average", clustering_method_rows="average",
                 clustering_distance_columns="euclidean", clustering_distance_rows="euclidean",
                 cluster_row_slices = F, column_split=5, name="T or Z statistic",
-                column_names_gp=gpar(fontfamily="Arial", fontsize=8), 
-                row_names_gp=gpar(fontfamily="Arial", fontsize=8),
+                column_names_gp=gpar( fontsize=8), 
+                row_names_gp=gpar( fontsize=8),
                 heatmap_legend_param = list(title_position = "leftcenter", direction = "horizontal",
-                                            title_gp = gpar(fontsize = 8, fontface = "bold", fontfamily="Arial"), labels_gp = gpar(fontsize = 8, fontfamily="Arial")))
+                                            title_gp = gpar(fontsize = 8, fontface = "bold"), labels_gp = gpar(fontsize = 8)))
   
   pdf(file="figures/clin_feature_heatmap_v1.pdf", width=174/24.5, height=174/24.5)
   
@@ -672,9 +672,9 @@ pear1.eln.plot <- function(p1.rna){
     annotate("segment", x=3, xend=3, y=7.75, yend=8.25) +
     geom_text(data=eln.res, mapping=aes(x=2, y=8.75, label=paste("Pvalue: ", signif(p.value, digits=3), ifelse(p.value >= .05, " (N.S.)", ""))), inherit.aes=F) +
     theme_bw() + xlab("") +
-    theme(axis.text = element_text(family="Arial", size=8),
-          text=element_text(family="Arial", size=8),
-          strip.text=element_text(family="Arial", size=8))
+    theme(axis.text = element_text( size=8),
+          text=element_text( size=8),
+          strip.text=element_text( size=8))
   
   
   ggsave(eln.pear, file="figures/pear1_v_eln2017.pdf", width=174/24.5, height=3)
@@ -690,15 +690,15 @@ pear1vslsc17 <- function(p1.rna, lsc.dt){
   
   lsc.plot <- .surv.plot.from.tree(rna.clin.df,var.name="LSC17", subset.descr="")
   
-  lsc.plot.p <- lsc.plot$plot + theme(axis.text = element_text(family="Arial", size=8),
-                                      text=element_text(family="Arial", size=8),
-                                      strip.text=element_text(family="Arial", size=8))
+  lsc.plot.p <- lsc.plot$plot + theme(axis.text = element_text( size=8),
+                                      text=element_text( size=8),
+                                      strip.text=element_text( size=8))
   
   p1.plot <- .surv.plot.from.tree(rna.clin.df,var.name="PEAR1", subset.descr="")
   
-  p1.plot.p <-  p1.plot$plot + theme(axis.text = element_text(family="Arial", size=8),
-                                     text=element_text(family="Arial", size=8),
-                                     strip.text=element_text(family="Arial", size=8))
+  p1.plot.p <-  p1.plot$plot + theme(axis.text = element_text( size=8),
+                                     text=element_text( size=8),
+                                     strip.text=element_text( size=8))
   
   ggsave(p1.plot.p + lsc.plot.p, file="figures/baml_pear1_young_v1.pdf", width=114/24.5, height=3)
   
@@ -783,9 +783,9 @@ exprs.boxplots.by.cohort <- function(clin, comb.exprs, wv.cols){
   bplot <- ggplot(data=mlt.exprs.w.coh, mapping=aes(x=pt_fac, y=norm, fill=cohort)) + geom_boxplot(outlier.shape=NA) +
     scale_fill_manual(values=wv.cols, name="Cohort") + 
     theme_bw() + theme(axis.text.x=element_blank()) + xlab("Patient Samples") + ylab("Normalized Expression") +
-    theme(axis.text = element_text(family="Arial", size=8),
-          text=element_text(family="Arial", size=8),
-          legend.text=element_text(family="Arial", size=8),
+    theme(axis.text = element_text( size=8),
+          text=element_text( size=8),
+          legend.text=element_text( size=8),
           legend.position="bottom")
   
   ggsave(bplot, file="figures/exprs_box_by_cohort_v1.pdf", width=30, height=5)
@@ -816,12 +816,12 @@ module.waves.overlays <- function(comb.mes, wgcna.maps, wv.cols){
       strip.text.x = element_blank() , 
       strip.background = element_blank(),
       plot.margin = unit( c(0,0,0,0) , units = "lines" ),
-      text=element_text(size=8, family="Arial"),
-      legend.text=element_text(size=8, family="Arial"))
+      text=element_text(size=8),
+      legend.text=element_text(size=8))
   
-  ggsave(comb.plot, file="figures/previous_train_test_overlay_mes.pdf", width=174/24.5, height=3.5)
+  ggsave(comb.plot, file="figures/previous_train_test_overlay_mes.png", width=174/24.5, height=3.5)
   
-  return("figures/previous_train_test_overlay_mes.pdf")
+  return("figures/previous_train_test_overlay_mes.png")
 }
 
 wgcna.mods.by.drug2 <- function(clin, inhib, wgcna.mes, wgcna.maps){
@@ -861,12 +861,12 @@ wgcna.mods.by.drug2 <- function(clin, inhib, wgcna.mes, wgcna.maps){
     geom_hline(yintercept=0, linetype="dashed") + 
     geom_vline(xintercept=0, linetype="dashed") +
     scale_fill_gradient2(low="red", mid="white", high="blue", guide="none") +
-    geom_label_repel(data=cast.ck[order(for_col)][1:3],mapping=aes(label=paste(inhibitor, titles, sep=" + ")), min.segment.length=0, box.padding=.5, fill="white", family="Arial", size=8/ggplot2:::.pt) +
-    geom_label_repel(data=cast.ck[order(-for_col)][1:3],mapping=aes(label=paste(inhibitor, titles, sep=" + ")), min.segment.length=0, box.padding=.5, fill="white", family="Arial", size=8/ggplot2:::.pt) +
+    geom_label_repel(data=cast.ck[order(for_col)][1:3],mapping=aes(label=paste(inhibitor, titles, sep=" + ")), min.segment.length=0, box.padding=.5, fill="white",  size=8/ggplot2:::.pt) +
+    geom_label_repel(data=cast.ck[order(-for_col)][1:3],mapping=aes(label=paste(inhibitor, titles, sep=" + ")), min.segment.length=0, box.padding=.5, fill="white",  size=8/ggplot2:::.pt) +
     theme_bw() + xlim(c(-1, 1)) + ylim(c(-1, 1)) +
-    theme(axis.text = element_text(family="Arial", size=8),
-          text=element_text(family="Arial", size=8),
-          strip.text=element_text(family="Arial", size=8))
+    theme(axis.text = element_text( size=8),
+          text=element_text( size=8),
+          strip.text=element_text( size=8))
   
   ggsave(drug.me.plot, file="figures/drug_cor_kme_v2.pdf", width=114/25.4, height=114/25.4)
   
@@ -884,7 +884,7 @@ vg.heatmap <- function(vg.scores){
   
   tmp.pc <- vg.scores$wv12_results[["Monocyte-like"]]$summary[order(PC1)]
   
-  sub.ha <- HeatmapAnnotation(PC1 = anno_barplot(tmp.pc$PC1, gp=gpar(col=base.col(tmp.pc$PC1), fill=base.col(tmp.pc$PC1)), axis_param=list(gp=gpar(fontsize=8, fontfamily="Arial"))),
+  sub.ha <- HeatmapAnnotation(PC1 = anno_barplot(tmp.pc$PC1, gp=gpar(col=base.col(tmp.pc$PC1), fill=base.col(tmp.pc$PC1)), axis_param=list(gp=gpar(fontsize=8))),
                               show_legend = c(F, T, F), height=unit(1, "in"))
   
   gene.kme <- vg.scores$wv12_results[["Monocyte-like"]]$kme[order(-kme)]
@@ -894,8 +894,8 @@ vg.heatmap <- function(vg.scores){
                 row_title_rot=0, show_row_dend=F,
                 heatmap_legend_param = list(color_bar = "continuous", legend_direction = "horizontal",
                                             legend_width = unit(5, "cm"), title_position = "leftcenter",
-                                            title_gp = gpar(fontsize = 8, fontface = "bold", fontfamily="Arial"), 
-                                            labels_gp = gpar(fontsize = 8, fontfamily="Arial")), 
+                                            title_gp = gpar(fontsize = 8, fontface = "bold"), 
+                                            labels_gp = gpar(fontsize = 8)), 
                 name="Scaled Exprs", border=T, column_title = "Monocyte-like")
   
   pdf(file="figures/van_galen_clusters_pcs_ml_v1.pdf", width=114/25.4, height=3)
@@ -934,9 +934,9 @@ vg.by.fab.plot <- function(clin, vg.scores){
     viridis::scale_fill_viridis(option="plasma", end=.9, guide="none") +
     theme_bw() + xlab("FAB") + ylab("van Galen Signature") +
     theme(
-      text=element_text(size=8, family="Arial"),
-      strip.text=element_text(size=8, family="Arial"),
-      axis.text=element_text(size=8, family="Arial")
+      text=element_text(size=8),
+      strip.text=element_text(size=8),
+      axis.text=element_text(size=8)
     )
   
   ggsave(vg.fab, file="figures/vg_fab_v1.pdf", width=114/25.4, height=4)
@@ -958,9 +958,9 @@ ven.pano.plot <- function(inhib, features){
     geom_smooth(method="lm", formula=y~x, se=F) +
     facet_wrap(~inhibitor) +
     theme_bw() + xlab("Monocyte-like") + ylab("AUC") +
-    theme(axis.text = element_text(family="Arial", size=8),
-          text=element_text(family="Arial", size=8),
-          strip.text=element_text(family="Arial", size=8))
+    theme(axis.text = element_text( size=8),
+          text=element_text( size=8),
+          strip.text=element_text( size=8))
   
   ggsave(vp.examp, file="figures/ven_pano_examp_v1.pdf", width=3.34, height=3.34)
   
@@ -992,9 +992,9 @@ sora.inter.inter.plot <- function(inhib, features, inh.inters){
     viridis::scale_fill_viridis(option="plasma", end=.9, guide="none") +
     facet_grid(ct_fac~ifelse(mut.FLT3_ITD==1, "FLT3-ITD Positive", "FLT3-ITD Negative")) +
     theme_bw()  + xlab("Cell-type Score") + ylab("Sorafenib AUC") +
-    theme(axis.text = element_text(family="Arial", size=8),
-          text=element_text(family="Arial", size=8),
-          strip.text=element_text(family="Arial", size=8))
+    theme(axis.text = element_text( size=8),
+          text=element_text( size=8),
+          strip.text=element_text( size=8))
   
   ggsave(s.examp, file="figures/sora_inter_examp_v1.pdf", width=6.85, height=6)
   
@@ -1027,23 +1027,23 @@ pear.tissue.surv.plot <- function(p1.dt){
   ggsave(
     pb.surv$plot + 
       theme(
-        text=element_text(family="Arial", size=8),
-        axis.text = element_text(family="Arial", size=8)
+        text=element_text( size=8),
+        axis.text = element_text( size=8)
       ) +
       bm.surv$plot + 
       theme(
-        text=element_text(family="Arial", size=8),
-        axis.text = element_text(family="Arial", size=8)
+        text=element_text( size=8),
+        axis.text = element_text( size=8)
       ) +
       ypb.surv$plot + 
       theme(
-        text=element_text(family="Arial", size=8),
-        axis.text = element_text(family="Arial", size=8)
+        text=element_text( size=8),
+        axis.text = element_text( size=8)
       ) +
       ybm.surv$plot + 
       theme(
-        text=element_text(family="Arial", size=8),
-        axis.text = element_text(family="Arial", size=8)
+        text=element_text( size=8),
+        axis.text = element_text( size=8)
       ) +
       plot_layout(ncol = 2), file="figures/pear1_tissue_surv.pdf", width=8, height=174/24.5)
   
@@ -1074,23 +1074,23 @@ pear1.vs.lsc17.both.median.split <- function(p1.dt, lsc17.dt){
   
   ggsave(p1.surv$plot + 
            theme(
-             text=element_text(family="Arial", size=8),
-             axis.text = element_text(family="Arial", size=8)
+             text=element_text( size=8),
+             axis.text = element_text( size=8)
            ) +
            lsc.surv$plot + 
            theme(
-             text=element_text(family="Arial", size=8),
-             axis.text = element_text(family="Arial", size=8)
+             text=element_text( size=8),
+             axis.text = element_text( size=8)
            ) +
            p.m.surv$plot + 
            theme(
-             text=element_text(family="Arial", size=8),
-             axis.text = element_text(family="Arial", size=8)
+             text=element_text( size=8),
+             axis.text = element_text( size=8)
            ) +
            lsc.m.surv$plot + 
            theme(
-             text=element_text(family="Arial", size=8),
-             axis.text = element_text(family="Arial", size=8)
+             text=element_text( size=8),
+             axis.text = element_text( size=8)
            ) +
            plot_layout(ncol=2), file="figures/pear1_lsc17_both_split_median.pdf", width=8, height=174/24.5)
   
@@ -1116,14 +1116,14 @@ pear1.assocs.plot <- function(p1.dt, features){
   stopifnot(mut.p1.assocs[highlight==T,max(fdr)] < .05)
   
   plot2 <- ggplot(data=mut.p1.assocs, mapping=aes(x=glass_d, y=-log10(pval),  fill=fdr < .05)) + geom_point(shape=21, mapping=aes(size=num_muts)) +
-    geom_text_repel(data=mut.p1.assocs[fdr < .05], mapping=aes(label=sub("\\.", "-", sub("mut\\.", "", gene))), min.segment.length=0, box.padding=.5, family="Arial", size=8/ggplot2:::.pt) +
+    geom_text_repel(data=mut.p1.assocs[fdr < .05], mapping=aes(label=sub("\\.", "-", sub("mut\\.", "", gene))), min.segment.length=0, box.padding=.5,  size=8/ggplot2:::.pt) +
     scale_size_continuous(name="Number Mutations") + 
     geom_vline(xintercept=0, linetype="dashed") +
     geom_hline(yintercept=-log10(.05), linetype="dashed") +
     theme_bw() + xlab("Effect Size") +
-    theme(axis.text = element_text(family="Arial", size=8),
-          text=element_text(family="Arial", size=8),
-          legend.text=element_text(family="Arial", size=8))
+    theme(axis.text = element_text( size=8),
+          text=element_text( size=8),
+          legend.text=element_text( size=8))
   
   ggsave(plot2, file="figures/pear1_mut_assocs_v1.pdf", width=174/24.5, height=4)
   
@@ -1158,16 +1158,16 @@ pear1.aml.type.plot <- function(clin, p1.dt, vg.scores, wv.cols){
     annotate("segment", x=1, xend=3, y=8.75, yend=8.75) +
     annotate("segment", x=1, xend=1, y=8.5, yend=9) +
     annotate("segment", x=3, xend=3, y=8.5, yend=9) +
-    annotate("text", x=2, y=9.25, label=paste("Pvalue <", signif(devtra[type == "dtrans"]$p.value, 3)), family="Arial", size=8/ggplot2:::.pt) +
+    annotate("text", x=2, y=9.25, label=paste("Pvalue <", signif(devtra[type == "dtrans"]$p.value, 3)),  size=8/ggplot2:::.pt) +
     annotate("segment", x=1, xend=2, y=7.75, yend=7.75) +
     annotate("segment", x=1, xend=1, y=7.5, yend=8) +
     annotate("segment", x=2, xend=2, y=7.5, yend=8) +
-    annotate("text", x=1.5, y=8.25, label=paste("Pvalue :", signif(devtra[type == "dther"]$p.value, 3)), family="Arial", size=8/ggplot2:::.pt) +
+    annotate("text", x=1.5, y=8.25, label=paste("Pvalue :", signif(devtra[type == "dther"]$p.value, 3)),  size=8/ggplot2:::.pt) +
     theme_bw() + xlab("") +
-    theme(axis.text = element_text(family="Arial", size=8),
-          text=element_text(family="Arial", size=8),
-          strip.text=element_text(family="Arial", size=8),
-          legend.text=element_text(family="Arial", size=8),
+    theme(axis.text = element_text( size=8),
+          text=element_text( size=8),
+          strip.text=element_text( size=8),
+          legend.text=element_text( size=8),
           legend.position = "bottom")
   
   vg.sum <- merge(vg.scores$summary[,.(ptid, vg_type, cohort, PC1)], mlt.sum[type %in% c("isDenovo", "isTransformed")], by=c("ptid", "cohort"))
@@ -1183,10 +1183,10 @@ pear1.aml.type.plot <- function(clin, p1.dt, vg.scores, wv.cols){
     scale_fill_discrete(name="") +
     scale_color_discrete(name="") +
     theme_bw() + xlab("Cell-Type Scores") +
-    theme(axis.text = element_text(family="Arial", size=8),
-          text=element_text(family="Arial", size=8),
-          strip.text=element_text(family="Arial", size=8),
-          legend.text=element_text(family="Arial", size=8),
+    theme(axis.text = element_text( size=8),
+          text=element_text( size=8),
+          strip.text=element_text( size=8),
+          legend.text=element_text( size=8),
           legend.position = "bottom")
   
   ggsave(plot1 + lplot + plot_layout(widths=c(1.25, 2)), file="figures/pear1_vs_aml_type.pdf", width=174/24.5, height=4)
