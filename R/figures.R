@@ -3,7 +3,7 @@ mut.freq.by.wave.plot <- function(comb.freq){
   p1 <- ggplot(data=comb.freq, mapping=aes(x=symb_ord, y=-train_prop)) + geom_col(fill="#023FA5") + coord_flip() +
     scale_x_discrete(drop=F, position = "top") +
     scale_y_continuous(labels=function(x) scales::percent(-x)) +
-    theme_bw() + xlab("") + ylab("Wave 1/2 Percentage") +
+    theme_bw() + xlab("") + ylab("Waves1+2 Percentage") +
     theme(
       text=element_text(family="Arial", size=8),
       axis.text.y=element_blank(),
@@ -13,7 +13,7 @@ mut.freq.by.wave.plot <- function(comb.freq){
   
   p2 <- ggplot(data=comb.freq, mapping=aes(x=symb_ord, y=test_prop)) + geom_col(fill="#7D87B9") + coord_flip() +
     scale_y_continuous(labels=scales::percent) +
-    theme_bw() + xlab("") + ylab("Wave 3/4 Percentage") +
+    theme_bw() + xlab("") + ylab("Waves3+4 Percentage") +
     theme(
       text=element_text(family="Arial", size=8),
       axis.text.x = element_text(family="Arial", size=8),
