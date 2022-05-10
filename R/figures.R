@@ -32,7 +32,7 @@ mut.freq.by.wave.plot <- function(comb.freq){
       axis.text.x = element_text(family="Arial", size=8)
     )
   
-  ggsave(p1 + p2 + p3, file="figures/beataml_mut_wave_comp_v1.pdf", width=114/25.4, height=114/25.4)
+  ggsave(p1 + p2 + p3, file="figures/beataml_mut_wave_comp_v1.pdf", width=(114/25.4)+.5, height=114/25.4)
   
   return("figures/beataml_mut_wave_comp_v1.pdf")
 }
@@ -752,11 +752,12 @@ pear1vslsc17.hr <- function(p1.rna, lsc.dt){
   comb.res.dt <- rbind(cbind(ctree.res.dt, type="ctree"), cbind(med.res.dt[,names(ctree.res.dt),with=F], type="median"))
   comb.res.dt[,worked:=T]
   
-  comb.res.dt[is.na(exp.coef.), `:=`(exp.coef.=1, lower..95=1, upper..95=1, worked=F)]
+  comb.res.dt[is.na(exp.coef.), `:=`(exp.coef.=2.5, lower..95=1, upper..95=1, worked=F)]
   
   p3 <- ggplot(data=comb.res.dt, mapping=aes(y=version, x=exp.coef., xmin=lower..95, xmax=upper..95, color=type, alpha=worked)) + geom_pointrange(position = position_dodge(width=.75)) +
     geom_vline(xintercept=1, linetype="dashed") +
-    scale_alpha_manual(values=c(`TRUE`=1, `FALSE`=.1), guide="none") + 
+    geom_text(data=comb.res.dt[worked==F], mapping=aes(label="N/A"), alpha=1, nudge_y=-.2, show.legend = F) +
+    scale_alpha_manual(values=c(`TRUE`=1, `FALSE`=0), guide="none") + 
     scale_color_manual(values=c(ctree="black", median="darkgrey"), name="Split Type") +
     facet_grid(tissue+cohort~., scales="free_y", labeller=function(x) lapply(x, .capwords)) + 
     scale_y_discrete(labels=function(x) sapply(strsplit(x, "\\."), "[[", 1)) + 

@@ -1,7 +1,13 @@
-mutation.freq.by.cohort <- function(mut.list){
+mutation.freq.by.cohort <- function(mut.list, fus.mat){
+  
+  melt.fus <- melt(id.vars=c("ptid", "cohort"), data=fus.mat, variable.factor=F)
+  fus.list <- split(melt.fus, by="cohort")
   
   train.mut <- mut.list$train
+  train.fus <- fus.list$`Waves1+2`[value > 0]
+  
   test.mut <- mut.list$test
+  test.fus <- fus.list$`Waves3+4`[value > 0]
   
   #wave 1/2 data
   train.dt <- data.table(reshape2::melt(train.mut, as.is=T))[value > 0]
@@ -9,8 +15,13 @@ mutation.freq.by.cohort <- function(mut.list){
   train.freq <- train.dt[,.(num_pats=length(unique(Var1))),by=.(symbol=Var2)]
   train.freq[,prop:=num_pats/nrow(train.mut)]
   
-  #retain those > 5%
-  train.5p <- train.freq[prop > .05][order(-prop)]
+  train.fus.freq <- train.fus[,.(num_pats=sum(value)),by=.(symbol=sub("\\.", "-", sub("mut.", "", variable)))]
+  train.fus.freq[,prop:=num_pats/fus.mat[cohort == "Waves1+2",.N]]
+  
+  train.freq <- rbind(cbind(train.freq, type="mut"), cbind(train.fus.freq[,names(train.freq),with=F], type="fus"))
+  
+  #retain those > 5% or fusions
+  train.5p <- train.freq[(prop > .05) | (type == "fus")]
   
   #waves 3/4 data
   test.dt <- data.table(reshape2::melt(test.mut, as.is=T))[value > 0]
@@ -18,7 +29,12 @@ mutation.freq.by.cohort <- function(mut.list){
   test.freq <- test.dt[,.(num_pats=length(unique(Var1))),by=.(symbol=Var2)]
   test.freq[,prop:=num_pats/nrow(test.mut)]
   
-  test.5p <- test.freq[prop > .05][order(-prop)]
+  test.fus.freq <- test.fus[,.(num_pats=sum(value)),by=.(symbol=sub("\\.", "-", sub("mut.", "", variable)))]
+  test.fus.freq[,prop:=num_pats/fus.mat[cohort == "Waves3+4",.N]]
+  
+  test.freq <- rbind(cbind(test.freq, type="mut"), cbind(test.fus.freq[,names(test.freq),with=F], type="fus"))
+  
+  test.5p <- test.freq[(prop > .05) | (type == "fus")]
   
   #now come up with overall ordering based on the parallel prop max
   gene.univ <- data.table(symbol=union(train.5p$symbol, test.5p$symbol))
@@ -31,6 +47,9 @@ mutation.freq.by.cohort <- function(mut.list){
   
   #this is the overall ordering
   comb.freq <- comb.freq[order(max_prop)]
+  
+  comb.freq[is.na(train_prop), train_prop:=0]
+  comb.freq[is.na(test_prop), test_prop:=0]
   
   comb.freq[,symb_ord:=factor(symbol, levels=symbol, ordered=T)]
   
