@@ -1,5 +1,5 @@
 
-# beataml2_manuscript
+# BeatAML2 Manuscript Workflow
 
 
 git clone https://github.com/biodev/beataml2_manuscript.git beataml2_manuscript
