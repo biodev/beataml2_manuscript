@@ -59,6 +59,79 @@ mutation.freq.by.cohort <- function(mut.list, fus.mat){
   
 }
 
+
+train.test.mut.assocs <- function(inhib, mut.list){
+  
+  inhib.mat <- reshape2::acast(ptid~inhibitor, value.var="auc",data=inhib[status == "train/test"])
+  
+  #test and train portion
+  
+  #only run those with >= 5 patients
+  
+  train.assoc <- .run.assoc.welch(mut.list$train, inhib.mat, min.muts=5)
+  
+  #only run those with >= 3 patients (as the ratio of train to test is 5/3)
+  
+  test.assoc <- .run.assoc.welch(mut.list$test, inhib.mat, min.muts=3)
+  
+  
+  tt.assoc <- merge(train.assoc[,.(inhibitor, gene, train_est=estimate, train_se=se, train_t=t, train_pval=pval, train_num=num_inhib, train_muts=num_muts, train_glass=glass_d,
+                                   train_glass_var=glass_var)], 
+                    test.assoc[,.(inhibitor, gene, test_est=estimate, test_se=se, test_t=t, test_pval=pval, test_num=num_inhib, test_muts=num_muts, test_glass=glass_d,
+                                  test_glass_var=glass_var)], 
+                    by=c("inhibitor", "gene"), all=F)
+  
+  #tt.assoc[,hist(train_pval)]#~borderline
+  tt.assoc[, train_fdr:=qvalue(train_pval)$qvalues]
+  
+  #tt.assoc[,hist(test_pval)]
+  tt.assoc[, test_fdr:=qvalue(test_pval)$qvalues]
+  
+  tt.assoc[,sig_cat:="Neither"]
+  tt.assoc[train_fdr < .05, sig_cat:="Waves 1+2"]
+  tt.assoc[test_fdr < .05, sig_cat:="Waves 3+4"]
+  tt.assoc[train_fdr < .05 & test_fdr < .05, sig_cat:="Both"]
+  
+  tt.assoc
+  
+}
+
+wgcna.mods.by.drug2 <- function(clin, inhib, wgcna.mes, wgcna.maps){
+  
+  me.mat <- reshape2::acast(ptid~module, value.var="PC1",data=wgcna.mes)
+  
+  inhib <- merge(clin[manuscript_inhibitor == "yes",.(ptid, cohort)], inhib, by="ptid")
+  
+  inh.kme <- rbindlist(lapply(split(inhib[status == "train/test"], by="cohort"), function(x){
+    
+    inh.mat <- reshape2::acast(ptid~inhibitor, value.var="auc",data=x)
+    
+    common.pts <- intersect(rownames(inh.mat), rownames(me.mat))
+    
+    inh.counts <- colSums(is.na(inh.mat[common.pts,])==F)
+    
+    stopifnot(all(inh.counts > 30) )
+    
+    cor.inh <- cor(me.mat[common.pts,], inh.mat[common.pts,], use = 'pairwise.complete.obs' )
+    
+    tmp.melt.cor <- data.table(reshape2::melt(as.matrix(cor.inh), as.is=T, value.name="cor"))
+    names(tmp.melt.cor)[1:2] <- c("cur_labels", "inhibitor")
+    
+    tmp.melt.cor
+    
+  }), idcol="cohort")
+  
+  cor.kme <- merge(inh.kme, wgcna.maps$mod.map[cur_labels != "M0"], by="cur_labels")
+  
+  cor.kme[,titles:=paste0(sub("M", "Mod", cur_labels), " (", prev_modules, ")")]
+  
+  cast.ck <- dcast(titles+inhibitor~cohort, value.var="cor", data=cor.kme)
+  
+  cast.ck[,for_col:=(`Waves1+2` + `Waves3+4`)/2]
+  
+  cast.ck 
+}
+
 summarize.denovo.aucs <- function(inhib, clin.dt){
   
   inhib.clin <- clin.dt[manuscript_inhibitor=="yes"]

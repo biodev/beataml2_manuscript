@@ -152,6 +152,16 @@ list(
   ),
   
   tar_target(
+    tt_mut_assocs,
+    train.test.mut.assocs(inhib_data, mut_list)
+  ),
+  
+  tar_target(
+    mod_drug_cor,
+    wgcna.mods.by.drug2(clin_data, inhib_data, wgcna_mes, wgcna_maps),
+  ),
+  
+  tar_target(
     inhib_sum,
     summarize.denovo.aucs(inhib_data, clin_data)
   ),
@@ -218,7 +228,7 @@ list(
   
   tar_target(
     figure1d,
-    train.test.mut.assocs(inhib_data, mut_list, wv_colors),
+    train.test.mut.assocs.plot(tt_mut_assocs, wv_colors),
     format = "file"
   ),
   
@@ -357,7 +367,7 @@ list(
   
   tar_target(
     figureS1c,
-    wgcna.mods.by.drug2(clin_data, inhib_data, wgcna_mes, wgcna_maps),
+    plot.wgcna.mods.by.drug2(mod_drug_cor),
     format = "file"
   ),
   
