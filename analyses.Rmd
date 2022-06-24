@@ -73,12 +73,15 @@ library(data.table)
 
 samps <- data.table(openxlsx::read.xlsx(tar_read(clin_wkst)))
 
-samps[cohort %in% c("Waves3+4","Both"),.N]#293
-samps[cohort %in% c("Waves3+4","Both"),length(unique(dbgap_subject_id))]#279
-
 wv.12.samps <- samps[cohort %in% c("Waves1+2","Both")]
 
 wv.34.samps <- samps[cohort %in% c("Waves3+4","Both")]
+
+wv.12.samps[,.N]#672
+wv.12.samps[,length(unique(dbgap_subject_id))]#562
+
+wv.34.samps[,.N]#293
+wv.34.samps[,length(unique(dbgap_subject_id))]#279
 
 only.wv.34 <- setdiff(wv.34.samps$dbgap_subject_id, wv.12.samps$dbgap_subject_id)
 
@@ -258,7 +261,7 @@ freqs[symbol == "ASXL1"]
 #  symbol train_prop test_prop  max_prop symb_ord       diff
 #1:  ASXL1 0.08713693 0.1515152 0.1515152    ASXL1 0.06437822
 
-round(freqs[,mean(diff)]*100, 3)#1.321
+round(freqs[,mean(diff)]*100, 3)#1.037
 
 ```
 
