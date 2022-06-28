@@ -1,8 +1,9 @@
 
 # BeatAML2 Manuscript Workflow
 
+## Setup
 
-git clone https://github.com/biodev/beataml2_manuscript.git beataml2_manuscript
+Clone into `beataml2_manuscript` directory
 
 ## Data 
 
