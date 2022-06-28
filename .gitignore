@@ -1,5 +1,8 @@
 .DS_Store
 _targets/*
 figures/*
+archive-figures/*
 output_files/*
+archive-output_file/*
 data/*
+*.ai

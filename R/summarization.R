@@ -1,7 +1,13 @@
-mutation.freq.by.cohort <- function(mut.list){
+mutation.freq.by.cohort <- function(mut.list, fus.mat){
+  
+  melt.fus <- melt(id.vars=c("ptid", "cohort"), data=fus.mat, variable.factor=F)
+  fus.list <- split(melt.fus, by="cohort")
   
   train.mut <- mut.list$train
+  train.fus <- fus.list$`Waves1+2`[value > 0]
+  
   test.mut <- mut.list$test
+  test.fus <- fus.list$`Waves3+4`[value > 0]
   
   #wave 1/2 data
   train.dt <- data.table(reshape2::melt(train.mut, as.is=T))[value > 0]
@@ -9,8 +15,13 @@ mutation.freq.by.cohort <- function(mut.list){
   train.freq <- train.dt[,.(num_pats=length(unique(Var1))),by=.(symbol=Var2)]
   train.freq[,prop:=num_pats/nrow(train.mut)]
   
-  #retain those > 5%
-  train.5p <- train.freq[prop > .05][order(-prop)]
+  train.fus.freq <- train.fus[,.(num_pats=sum(value)),by=.(symbol=sub("\\.", "-", sub("mut.", "", variable)))]
+  train.fus.freq[,prop:=num_pats/fus.mat[cohort == "Waves1+2",.N]]
+  
+  train.freq <- rbind(cbind(train.freq, type="mut"), cbind(train.fus.freq[,names(train.freq),with=F], type="fus"))
+  
+  #retain those > 5% or fusions
+  train.5p <- train.freq[(prop > .05) | (type == "fus")]
   
   #waves 3/4 data
   test.dt <- data.table(reshape2::melt(test.mut, as.is=T))[value > 0]
@@ -18,7 +29,12 @@ mutation.freq.by.cohort <- function(mut.list){
   test.freq <- test.dt[,.(num_pats=length(unique(Var1))),by=.(symbol=Var2)]
   test.freq[,prop:=num_pats/nrow(test.mut)]
   
-  test.5p <- test.freq[prop > .05][order(-prop)]
+  test.fus.freq <- test.fus[,.(num_pats=sum(value)),by=.(symbol=sub("\\.", "-", sub("mut.", "", variable)))]
+  test.fus.freq[,prop:=num_pats/fus.mat[cohort == "Waves3+4",.N]]
+  
+  test.freq <- rbind(cbind(test.freq, type="mut"), cbind(test.fus.freq[,names(test.freq),with=F], type="fus"))
+  
+  test.5p <- test.freq[(prop > .05) | (type == "fus")]
   
   #now come up with overall ordering based on the parallel prop max
   gene.univ <- data.table(symbol=union(train.5p$symbol, test.5p$symbol))
@@ -32,12 +48,88 @@ mutation.freq.by.cohort <- function(mut.list){
   #this is the overall ordering
   comb.freq <- comb.freq[order(max_prop)]
   
+  comb.freq[is.na(train_prop), train_prop:=0]
+  comb.freq[is.na(test_prop), test_prop:=0]
+  
   comb.freq[,symb_ord:=factor(symbol, levels=symbol, ordered=T)]
   
   comb.freq[,diff:=test_prop - train_prop]
   
   comb.freq
   
+}
+
+
+train.test.mut.assocs <- function(inhib, mut.list){
+  
+  inhib.mat <- reshape2::acast(ptid~inhibitor, value.var="auc",data=inhib[status == "train/test"])
+  
+  #test and train portion
+  
+  #only run those with >= 5 patients
+  
+  train.assoc <- .run.assoc.welch(mut.list$train, inhib.mat, min.muts=5)
+  
+  #only run those with >= 3 patients (as the ratio of train to test is 5/3)
+  
+  test.assoc <- .run.assoc.welch(mut.list$test, inhib.mat, min.muts=3)
+  
+  
+  tt.assoc <- merge(train.assoc[,.(inhibitor, gene, train_est=estimate, train_se=se, train_t=t, train_pval=pval, train_num=num_inhib, train_muts=num_muts, train_glass=glass_d,
+                                   train_glass_var=glass_var)], 
+                    test.assoc[,.(inhibitor, gene, test_est=estimate, test_se=se, test_t=t, test_pval=pval, test_num=num_inhib, test_muts=num_muts, test_glass=glass_d,
+                                  test_glass_var=glass_var)], 
+                    by=c("inhibitor", "gene"), all=F)
+  
+  #tt.assoc[,hist(train_pval)]#~borderline
+  tt.assoc[, train_fdr:=qvalue(train_pval)$qvalues]
+  
+  #tt.assoc[,hist(test_pval)]
+  tt.assoc[, test_fdr:=qvalue(test_pval)$qvalues]
+  
+  tt.assoc[,sig_cat:="Neither"]
+  tt.assoc[train_fdr < .05, sig_cat:="Waves 1+2"]
+  tt.assoc[test_fdr < .05, sig_cat:="Waves 3+4"]
+  tt.assoc[train_fdr < .05 & test_fdr < .05, sig_cat:="Both"]
+  
+  tt.assoc
+  
+}
+
+wgcna.mods.by.drug2 <- function(clin, inhib, wgcna.mes, wgcna.maps){
+  
+  me.mat <- reshape2::acast(ptid~module, value.var="PC1",data=wgcna.mes)
+  
+  inhib <- merge(clin[manuscript_inhibitor == "yes",.(ptid, cohort)], inhib, by="ptid")
+  
+  inh.kme <- rbindlist(lapply(split(inhib[status == "train/test"], by="cohort"), function(x){
+    
+    inh.mat <- reshape2::acast(ptid~inhibitor, value.var="auc",data=x)
+    
+    common.pts <- intersect(rownames(inh.mat), rownames(me.mat))
+    
+    inh.counts <- colSums(is.na(inh.mat[common.pts,])==F)
+    
+    stopifnot(all(inh.counts > 30) )
+    
+    cor.inh <- cor(me.mat[common.pts,], inh.mat[common.pts,], use = 'pairwise.complete.obs' )
+    
+    tmp.melt.cor <- data.table(reshape2::melt(as.matrix(cor.inh), as.is=T, value.name="cor"))
+    names(tmp.melt.cor)[1:2] <- c("cur_labels", "inhibitor")
+    
+    tmp.melt.cor
+    
+  }), idcol="cohort")
+  
+  cor.kme <- merge(inh.kme, wgcna.maps$mod.map[cur_labels != "M0"], by="cur_labels")
+  
+  cor.kme[,titles:=paste0(sub("M", "Mod", cur_labels), " (", prev_modules, ")")]
+  
+  cast.ck <- dcast(titles+inhibitor~cohort, value.var="cor", data=cor.kme)
+  
+  cast.ck[,for_col:=(`Waves1+2` + `Waves3+4`)/2]
+  
+  cast.ck 
 }
 
 summarize.denovo.aucs <- function(inhib, clin.dt){

@@ -83,6 +83,30 @@ get.combined.exprs <- function(exprs.file, clin){
   t(exprs.mat)
 }
 
+fusion.only.dataset <- function(clin){
+  
+  clin[is.na(consensusAMLFusions),consensusAMLFusions:=""]
+  
+  #the N/A here indicates those without rnaseq or karyotypes so are universally missing
+  cons.pts <- clin[consensusAMLFusions != "N/A"]
+  
+  uniq.pts <- cons.pts[,.(consensusAMLFusions=paste(unique(consensusAMLFusions), collapse=";"),.N), by=.(ptid, cohort)]
+  uniq.pts[,ConsensusFusion:=make.names(paste("mut",sub(";", "", consensusAMLFusions), sep="."))]
+  
+  uniq.pts[,value:=1]
+  uniq.pts[,ptfac:=factor(ptid)]
+  
+  fusion.mat <- dcast(ptfac~ConsensusFusion, value.var="value", data=uniq.pts[ConsensusFusion != "mut."], fill=0,drop=F)
+  fusion.mat[,ptid:=as.character(ptfac)]
+  fusion.mat[,ptfac:=NULL]
+  
+  fusion.mat <- merge(uniq.pts[,.(ptid, cohort)], fusion.mat, by="ptid")
+  
+  stopifnot(fusion.mat[,.N] ==  cons.pts[,.N,by=ptid][,.N])
+  
+  fusion.mat
+}
+
 mutation.only.dataset <- function(mut.file, clin){
   
   muts <- fread(mut.file, sep="\t", header=T)
@@ -309,11 +333,13 @@ van.galen.scores <- function(comb.exprs, clin, vg.genes){
   
   eigct.dt <- merge(eigct.dt, clin[manuscript_rnaseq=="yes",.(ptid, cohort, specimenType)], by=c("ptid", "cohort"))
   
-  list(summary=eigct.dt, wv12_results=eigct.list, wv12_sexprs=scale.exprs)
+  list(summary=eigct.dt, wv12_results=eigct.list, wv12_sexprs=scale.exprs, 
+       bm_scale=list(center=attr(bm.scale.exprs,"scaled:center"), scale=attr(bm.scale.exprs,"scaled:scale")), 
+       pb_scale=list(center=attr(pb.scale.exprs,"scaled:center"), scale=attr(pb.scale.exprs,"scaled:scale")))
   
 }
 
-mutation.expression.features <- function(vg.scores, comb.mes, mut.list, clin){
+mutation.expression.features <- function(vg.scores, comb.mes, mut.list, fus.mat, clin){
   
   #first modules
   me.dt <- dcast(ptid~module, value.var="PC1",data=comb.mes[module != "M0"])
@@ -339,23 +365,9 @@ mutation.expression.features <- function(vg.scores, comb.mes, mut.list, clin){
   
   #consensus fusions
   
-  clin[is.na(consensusAMLFusions),consensusAMLFusions:=""]
+  num.fus <- colSums(as.matrix(fus.mat[,-c(1:2),with=F]))
   
-  #the N/A here indicates those without rnaseq or karyotypes so are universally missing
-  cons.pts <- clin[consensusAMLFusions != "N/A"]
-  
-  uniq.pts <- cons.pts[,.(consensusAMLFusions=paste(unique(consensusAMLFusions), collapse=";"),.N), by=.(ptid)]
-  uniq.pts[,ConsensusFusion:=make.names(paste("mut",sub(";", "", consensusAMLFusions), sep="."))]
-  uniq.pts[,value:=1]
-  uniq.pts[,ptfac:=factor(ptid)]
-  
-  num.fus <- uniq.pts[,.N,by=ConsensusFusion]
-  
-  uniq.pts <- uniq.pts[ConsensusFusion %in% num.fus[N < 10,ConsensusFusion]==F]
-  
-  fusion.mat <- dcast(ptfac~ConsensusFusion, value.var="value", data=uniq.pts[ConsensusFusion != "mut."], fill=0,drop=F)
-  fusion.mat[,ptid:=as.character(ptfac)]
-  fusion.mat[,ptfac:=NULL]
+  fusion.mat <- fus.mat[,c("ptid", names(num.fus)[num.fus >= 10]),with=F]
   
   cmf.dt <- merge(cm.dt, fusion.mat, by="ptid", all=T)
   

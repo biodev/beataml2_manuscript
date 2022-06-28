@@ -11,7 +11,7 @@ list(
   
   tar_target(
     clin_wkst,
-    "data/Table_S1.xlsx",
+    "data/beataml_wv1to4_clinical.xlsx",
     format = "file"
   ),
   
@@ -29,7 +29,7 @@ list(
   
   tar_target(
     inhibitor_family_file,
-    "data/Table_S4.xlsx",
+    "data/beataml_drug_families.xlsx",
     format = "file"
   ),
   
@@ -90,6 +90,11 @@ list(
   ),
   
   tar_target(
+    fus_mat,
+    fusion.only.dataset(clin_data)
+  ),
+  
+  tar_target(
     inhib_data,
     inhibitor.dataset(inhibitor_file, clin_data)
   ),
@@ -116,7 +121,7 @@ list(
   
   tar_target(
     feature_data,
-    mutation.expression.features(vg_scores, wgcna_mes, mut_list, clin_data)
+    mutation.expression.features(vg_scores, wgcna_mes, mut_list, fus_mat, clin_data)
   ),
   
   tar_target(
@@ -143,7 +148,17 @@ list(
   
   tar_target(
     mut_freqs,
-    mutation.freq.by.cohort(mut_list)
+    mutation.freq.by.cohort(mut_list, fus_mat)
+  ),
+  
+  tar_target(
+    tt_mut_assocs,
+    train.test.mut.assocs(inhib_data, mut_list)
+  ),
+  
+  tar_target(
+    mod_drug_cor,
+    wgcna.mods.by.drug2(clin_data, inhib_data, wgcna_mes, wgcna_maps),
   ),
   
   tar_target(
@@ -213,7 +228,7 @@ list(
   
   tar_target(
     figure1d,
-    train.test.mut.assocs(inhib_data, mut_list, wv_colors),
+    train.test.mut.assocs.plot(tt_mut_assocs, wv_colors),
     format = "file"
   ),
   
@@ -352,7 +367,7 @@ list(
   
   tar_target(
     figureS1c,
-    wgcna.mods.by.drug2(clin_data, inhib_data, wgcna_mes, wgcna_maps),
+    plot.wgcna.mods.by.drug2(mod_drug_cor),
     format = "file"
   ),
   
